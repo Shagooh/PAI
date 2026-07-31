@@ -152,6 +152,13 @@ function App() {
     setEditForm((prev) => ({ ...prev, [name]: value }))
   }
 
+  const cancelEditUser = () => {
+    setEditingUser(null)
+    setEditForm({ rut: '', nombre: '', apellido: '', edad: '' })
+    setSelectedSearchIds([])
+    setSearchMetaText('')
+  }
+
   const toggleAllSearch = () => {
     if (!searchResults) return
     if (selectedSearchIds.length === searchResults.length) setSelectedSearchIds([])
@@ -329,8 +336,9 @@ function App() {
                       <label className="form-label">Edad</label>
                       <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
                     </div>
-                    <div className="col-md-1 d-flex align-items-end">
+                    <div className="col-md-2 d-flex align-items-end gap-2">
                       <button type="submit" className="btn btn-success w-100">Guardar</button>
+                      <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelEditUser}>Cancelar</button>
                     </div>
                   </div>
                 </form>
@@ -344,6 +352,38 @@ function App() {
       {view === 'tablas' && (
         <>
           <UsuariosList usuarios={usuarios} onEdit={handleEditUser} onRefresh={refreshUsuarios} />
+
+          {editingUser && (
+            <div className="card mt-4">
+              <div className="card-header fw-bold">Editar Usuario</div>
+              <div className="card-body">
+                <form onSubmit={updateUsuario}>
+                  <div className="row g-3">
+                    <div className="col-md-3">
+                      <label className="form-label">RUT</label>
+                      <input name="rut" className="form-control" value={editForm.rut} onChange={handleEditFormChange} required />
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">Nombre</label>
+                      <input name="nombre" className="form-control" value={editForm.nombre} onChange={handleEditFormChange} required />
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">Apellido</label>
+                      <input name="apellido" className="form-control" value={editForm.apellido} onChange={handleEditFormChange} required />
+                    </div>
+                    <div className="col-md-2">
+                      <label className="form-label">Edad</label>
+                      <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
+                    </div>
+                    <div className="col-md-2 d-flex align-items-end gap-2">
+                      <button type="submit" className="btn btn-success w-100">Guardar</button>
+                      <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelEditUser}>Cancelar</button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <div className="card mt-4">
             <div className="card-header d-flex justify-content-between align-items-center fw-bold w-100">
