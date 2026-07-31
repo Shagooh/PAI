@@ -239,19 +239,6 @@ function App() {
                 <p className="text-muted">No se encontraron usuarios.</p>
               ) : (
                 <>
-                  {selectedSearchIds.length > 0 && (
-                    <div className="mb-3">
-                      <label className="form-label fw-bold">META</label>
-                      <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
-                    </div>
-                  )}
-                  {selectedSearchIds.length > 0 && (
-                    <div className="mb-3">
-                      <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
-                        Vista previa ({selectedSearchIds.length})
-                      </button>
-                    </div>
-                  )}
                   <table className="table table-striped">
                     <thead className="table-dark">
                       <tr>
@@ -286,6 +273,17 @@ function App() {
                       ))}
                     </tbody>
                   </table>
+                  {selectedSearchIds.length > 0 && (
+                    <div className="mt-3 border-top pt-3">
+                      <label className="form-label fw-bold">META</label>
+                      <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
+                      <div className="mt-3">
+                        <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
+                          Vista previa ({selectedSearchIds.length})
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </>
