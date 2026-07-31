@@ -346,9 +346,9 @@ function App() {
           <UsuariosList usuarios={usuarios} onEdit={handleEditUser} onRefresh={refreshUsuarios} />
 
           <div className="card mt-4">
-            <div className="card-header d-flex justify-content-between align-items-center fw-bold">
+            <div className="card-header d-flex justify-content-between align-items-center fw-bold w-100">
               <span>Tabla de Decisiones — Habilitaciones</span>
-              <button type="button" className="btn btn-sm btn-outline-light" onClick={refreshHabilitaciones}>
+              <button type="button" className="btn btn-sm btn-outline-primary ms-auto" onClick={refreshHabilitaciones}>
                 Refrescar
               </button>
             </div>
