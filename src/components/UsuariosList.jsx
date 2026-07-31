@@ -1,7 +1,12 @@
-function UsuariosList({ usuarios, onEdit }) {
+function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
   return (
     <div className="card mt-4">
-      <div className="card-header fw-bold">Todos los Usuarios</div>
+      <div className="card-header d-flex justify-content-between align-items-center fw-bold">
+        <span>Todos los Usuarios</span>
+        <button type="button" className="btn btn-sm btn-outline-light" onClick={onRefresh}>
+          Refrescar
+        </button>
+      </div>
       <div className="card-body p-0">
         {usuarios.length === 0 ? (
           <p className="text-muted p-3">No hay usuarios registrados.</p>

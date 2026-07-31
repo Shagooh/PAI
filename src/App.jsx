@@ -92,6 +92,9 @@ function App() {
     }
   }
 
+  const refreshUsuarios = () => fetchUsuarios(true)
+  const refreshHabilitaciones = () => fetchHabilitaciones(true)
+
   useEffect(() => {
     const cachedUsuarios = readCache('usuarios', [])
     const cachedHabilitaciones = readCache('habilitaciones', [])
@@ -340,10 +343,15 @@ function App() {
 
       {view === 'tablas' && (
         <>
-          <UsuariosList usuarios={usuarios} onEdit={handleEditUser} />
+          <UsuariosList usuarios={usuarios} onEdit={handleEditUser} onRefresh={refreshUsuarios} />
 
           <div className="card mt-4">
-            <div className="card-header fw-bold">Tabla de Decisiones — Habilitaciones</div>
+            <div className="card-header d-flex justify-content-between align-items-center fw-bold">
+              <span>Tabla de Decisiones — Habilitaciones</span>
+              <button type="button" className="btn btn-sm btn-outline-light" onClick={refreshHabilitaciones}>
+                Refrescar
+              </button>
+            </div>
             <div className="card-body p-0">
               <table className="table table-bordered mb-0">
                 <thead className="table-dark">
