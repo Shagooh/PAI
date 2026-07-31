@@ -135,23 +135,6 @@ function App() {
     else setSelectedSearchIds(searchResults.map((u) => u.rut))
   }
 
-  const descargarBusqueda = async (formato) => {
-    const ids = selectedSearchIds.join(',')
-    const params = new URLSearchParams()
-    if (ids) params.set('ids', ids)
-    if (searchMetaText) params.set('meta', searchMetaText)
-    const qs = params.toString()
-    const url = `${buildApiUrl(`/api/usuarios/${formato}`)}${qs ? '?' + qs : ''}`
-    const res = await fetch(url)
-    const blob = await res.blob()
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    const ext = formato === 'excel' ? 'xlsx' : formato === 'pdf' ? 'pdf' : 'docx'
-    link.download = `usuarios.${ext}`
-    link.click()
-    URL.revokeObjectURL(link.href)
-  }
-
   const abrirPreviewBusqueda = () => {
     const ids = selectedSearchIds.join(',')
     const params = new URLSearchParams()
@@ -209,16 +192,7 @@ function App() {
                     <label className="form-label fw-bold">META</label>
                     <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
                   </div>
-                  <div className="d-flex gap-2 mb-3">
-                    <button className="btn btn-success" onClick={() => descargarBusqueda('excel')} disabled={selectedSearchIds.length === 0}>
-                      Excel ({selectedSearchIds.length})
-                    </button>
-                    <button className="btn btn-danger" onClick={() => descargarBusqueda('pdf')} disabled={selectedSearchIds.length === 0}>
-                      PDF ({selectedSearchIds.length})
-                    </button>
-                    <button className="btn btn-primary" onClick={() => descargarBusqueda('word')} disabled={selectedSearchIds.length === 0}>
-                      Word ({selectedSearchIds.length})
-                    </button>
+                  <div className="mb-3">
                     <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
                       Vista previa ({selectedSearchIds.length})
                     </button>
