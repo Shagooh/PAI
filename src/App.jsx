@@ -90,13 +90,58 @@ function App() {
   }
 
   const abrirPreviewBusqueda = () => {
-    const ids = selectedSearchIds.join(',')
-    const params = new URLSearchParams()
-    if (ids) params.set('ids', ids)
-    if (searchMetaText) params.set('meta', searchMetaText)
-    const qs = params.toString()
-    const url = `${buildApiUrl('/api/usuarios/preview')}${qs ? '?' + qs : ''}`
-    window.open(url, '_blank')
+    if (!searchResults || selectedSearchIds.length === 0) return
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
+    const usuariosSeleccionados = searchResults.filter((u) => selectedSearchIds.includes(u.rut))
+    const rows = usuariosSeleccionados.map((u) => `
+      <tr>
+        <td>${escapeHtml(u.rut)}</td>
+        <td>${escapeHtml(u.nombre)}</td>
+        <td>${escapeHtml(u.apellido)}</td>
+        <td>${escapeHtml(u.edad)}</td>
+        <td>${escapeHtml(u.descripcion || '-')}</td>
+        <td>${escapeHtml(u.habilitado ?? '-')}</td>
+      </tr>
+    `).join('')
+
+    const html = `<!doctype html>
+      <html lang="es">
+        <head>
+          <meta charset="utf-8" />
+          <title>Vista previa de usuarios</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #222; }
+            h1 { margin-bottom: 8px; }
+            .meta { margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background: #343a40; color: white; }
+          </style>
+        </head>
+        <body>
+          <h1>Vista previa de usuarios</h1>
+          <div class="meta"><strong>Meta:</strong> ${escapeHtml(searchMetaText.trim() || 'Sin meta')}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>RUT</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Edad</th>
+                <th>Descripción</th>
+                <th>Habilitado</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>`
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
 
   const createUsuario = async (usuario) => {
