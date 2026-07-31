@@ -1,4 +1,4 @@
-function UsuariosList({ usuarios, onDelete }) {
+function UsuariosList({ usuarios, onEdit }) {
   return (
     <div className="card mt-4">
       <div className="card-header fw-bold">Todos los Usuarios</div>
@@ -36,7 +36,7 @@ function UsuariosList({ usuarios, onDelete }) {
                     </span>
                   </td>
                   <td>
-                    <button className="btn btn-sm btn-danger" onClick={() => onDelete(u.rut)}>Eliminar</button>
+                    <button className="btn btn-sm btn-warning" onClick={() => onEdit(u)}>Editar</button>
                   </td>
                 </tr>
               ))}

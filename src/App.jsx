@@ -50,6 +50,8 @@ function App() {
   const [searchResults, setSearchResults] = useState(null)
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
   const [searchMetaText, setSearchMetaText] = useState('')
+  const [editingUser, setEditingUser] = useState(null)
+  const [editForm, setEditForm] = useState({ rut: '', nombre: '', apellido: '', edad: '' })
 
   const fetchUsuarios = async (forceRefresh = false) => {
     const cachedUsuarios = readCache('usuarios', [])
@@ -129,6 +131,23 @@ function App() {
     )
   }
 
+  const handleEditUser = (user) => {
+    setEditingUser(user)
+    setEditForm({
+      rut: user.rut || '',
+      nombre: user.nombre || '',
+      apellido: user.apellido || '',
+      edad: user.edad?.toString() || ''
+    })
+    setSelectedSearchIds([user.rut])
+    setSearchMetaText(user.meta || '')
+  }
+
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target
+    setEditForm((prev) => ({ ...prev, [name]: value }))
+  }
+
   const toggleAllSearch = () => {
     if (!searchResults) return
     if (selectedSearchIds.length === searchResults.length) setSelectedSearchIds([])
@@ -159,14 +178,46 @@ function App() {
     fetchUsuarios()
   }
 
-  const deleteUsuario = async (id) => {
-    try {
-      const res = await fetch(`${API_USUARIOS}/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-    } catch (error) {
-      console.error('No se pudo eliminar el usuario:', error)
+  const updateUsuario = async (e) => {
+    e.preventDefault()
+    if (!editingUser) return
+
+    const payload = {
+      ...editForm,
+      edad: Number(editForm.edad),
+      meta: searchMetaText,
     }
-    fetchUsuarios()
+
+    try {
+      const res = await fetch(`${API_USUARIOS}/${editingUser.rut}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+
+      const updatedUser = await res.json().catch(() => payload)
+      const normalizedUser = {
+        ...editingUser,
+        ...updatedUser,
+        rut: updatedUser.rut || editForm.rut,
+        nombre: updatedUser.nombre || editForm.nombre,
+        apellido: updatedUser.apellido || editForm.apellido,
+        edad: Number(updatedUser.edad ?? editForm.edad),
+        meta: searchMetaText,
+      }
+
+      setUsuarios((prev) => prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)))
+      setSearchResults((prev) => prev ? prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)) : prev)
+      setEditingUser(null)
+      setEditForm({ rut: '', nombre: '', apellido: '', edad: '' })
+      setSelectedSearchIds([normalizedUser.rut])
+      setSearchMetaText(normalizedUser.meta || '')
+    } catch (error) {
+      console.error('No se pudo actualizar el usuario:', error)
+    }
+
+    fetchUsuarios(true)
   }
 
   return (
@@ -188,15 +239,19 @@ function App() {
                 <p className="text-muted">No se encontraron usuarios.</p>
               ) : (
                 <>
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">META</label>
-                    <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
-                  </div>
-                  <div className="mb-3">
-                    <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
-                      Vista previa ({selectedSearchIds.length})
-                    </button>
-                  </div>
+                  {selectedSearchIds.length > 0 && (
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">META</label>
+                      <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
+                    </div>
+                  )}
+                  {selectedSearchIds.length > 0 && (
+                    <div className="mb-3">
+                      <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
+                        Vista previa ({selectedSearchIds.length})
+                      </button>
+                    </div>
+                  )}
                   <table className="table table-striped">
                     <thead className="table-dark">
                       <tr>
@@ -238,7 +293,38 @@ function App() {
         </div>
       </div>
 
-      <UsuariosList usuarios={usuarios} onDelete={deleteUsuario} />
+      {editingUser && (
+        <div className="card mt-4">
+          <div className="card-header fw-bold">Editar Usuario</div>
+          <div className="card-body">
+            <form onSubmit={updateUsuario}>
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label className="form-label">RUT</label>
+                  <input name="rut" className="form-control" value={editForm.rut} onChange={handleEditFormChange} required />
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label">Nombre</label>
+                  <input name="nombre" className="form-control" value={editForm.nombre} onChange={handleEditFormChange} required />
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label">Apellido</label>
+                  <input name="apellido" className="form-control" value={editForm.apellido} onChange={handleEditFormChange} required />
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label">Edad</label>
+                  <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
+                </div>
+                <div className="col-md-1 d-flex align-items-end">
+                  <button type="submit" className="btn btn-success w-100">Guardar</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <UsuariosList usuarios={usuarios} onEdit={handleEditUser} />
 
       <div className="card mt-4">
         <div className="card-header fw-bold">Tabla de Decisiones — Habilitaciones</div>
