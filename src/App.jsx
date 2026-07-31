@@ -6,40 +6,103 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 const API_USUARIOS = buildApiUrl('/api/usuarios')
 const API_HABILITACIONES = buildApiUrl('/api/habilitaciones')
+const CACHE_KEY = 'crud-app-cache-v1'
+const CACHE_TTL_MS = 5 * 60 * 1000
+
+const getCacheStore = () => {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(window.localStorage.getItem(CACHE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+const getCacheEntry = (key) => {
+  const store = getCacheStore()
+  return store[key] || null
+}
+
+const hasValidCache = (key) => {
+  const entry = getCacheEntry(key)
+  if (!entry?.timestamp) return false
+  return Date.now() - entry.timestamp <= CACHE_TTL_MS
+}
+
+const readCache = (key, fallback = []) => {
+  const entry = getCacheEntry(key)
+  if (!entry?.timestamp) return fallback
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) return fallback
+  return entry.data
+}
+
+const writeCache = (key, data) => {
+  if (typeof window === 'undefined') return
+  const store = getCacheStore()
+  store[key] = { timestamp: Date.now(), data }
+  window.localStorage.setItem(CACHE_KEY, JSON.stringify(store))
+}
 
 function App() {
-  const [usuarios, setUsuarios] = useState([])
-  const [habilitaciones, setHabilitaciones] = useState([])
+  const [usuarios, setUsuarios] = useState(() => readCache('usuarios', []))
+  const [habilitaciones, setHabilitaciones] = useState(() => readCache('habilitaciones', []))
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState(null)
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
   const [searchMetaText, setSearchMetaText] = useState('')
 
-  const fetchUsuarios = async () => {
+  const fetchUsuarios = async (forceRefresh = false) => {
+    const cachedUsuarios = readCache('usuarios', [])
+    if (!forceRefresh && hasValidCache('usuarios')) {
+      setUsuarios(cachedUsuarios)
+      return
+    }
+
     try {
       const res = await fetch(API_USUARIOS)
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
       setUsuarios(data)
+      writeCache('usuarios', data)
     } catch (error) {
       console.error('No se pudieron cargar los usuarios:', error)
-      setUsuarios([])
+      setUsuarios(cachedUsuarios)
     }
   }
 
-  const fetchHabilitaciones = async () => {
+  const fetchHabilitaciones = async (forceRefresh = false) => {
+    const cachedHabilitaciones = readCache('habilitaciones', [])
+    if (!forceRefresh && hasValidCache('habilitaciones')) {
+      setHabilitaciones(cachedHabilitaciones)
+      return
+    }
+
     try {
       const res = await fetch(API_HABILITACIONES)
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
       setHabilitaciones(data)
+      writeCache('habilitaciones', data)
     } catch (error) {
       console.error('No se pudieron cargar las habilitaciones:', error)
-      setHabilitaciones([])
+      setHabilitaciones(cachedHabilitaciones)
     }
   }
 
-  useEffect(() => { fetchUsuarios(); fetchHabilitaciones() }, [])
+  useEffect(() => {
+    const cachedUsuarios = readCache('usuarios', [])
+    const cachedHabilitaciones = readCache('habilitaciones', [])
+
+    if (cachedUsuarios.length > 0 || cachedHabilitaciones.length > 0) {
+      setUsuarios(cachedUsuarios)
+      setHabilitaciones(cachedHabilitaciones)
+    }
+
+    if (!hasValidCache('usuarios') || !hasValidCache('habilitaciones')) {
+      fetchUsuarios()
+      fetchHabilitaciones()
+    }
+  }, [])
 
   const buscarUsuario = async () => {
     if (!searchQuery.trim()) return
