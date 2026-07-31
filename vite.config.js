@@ -6,7 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3000'
+      '/api': {
+        target: 'https://pai-be.vercel.app',
+        changeOrigin: true,
+        secure: true
+      }
     }
   }
 })

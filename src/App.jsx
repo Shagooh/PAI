@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
 
-const API_USUARIOS = '/api/usuarios'
-const API_HABILITACIONES = '/api/habilitaciones'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
+const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+const API_USUARIOS = buildApiUrl('/api/usuarios')
+const API_HABILITACIONES = buildApiUrl('/api/habilitaciones')
 
 function App() {
   const [usuarios, setUsuarios] = useState([])
@@ -14,25 +16,44 @@ function App() {
   const [searchMetaText, setSearchMetaText] = useState('')
 
   const fetchUsuarios = async () => {
-    const res = await fetch(API_USUARIOS)
-    const data = await res.json()
-    setUsuarios(data)
+    try {
+      const res = await fetch(API_USUARIOS)
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      setUsuarios(data)
+    } catch (error) {
+      console.error('No se pudieron cargar los usuarios:', error)
+      setUsuarios([])
+    }
   }
 
   const fetchHabilitaciones = async () => {
-    const res = await fetch(API_HABILITACIONES)
-    const data = await res.json()
-    setHabilitaciones(data)
+    try {
+      const res = await fetch(API_HABILITACIONES)
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      setHabilitaciones(data)
+    } catch (error) {
+      console.error('No se pudieron cargar las habilitaciones:', error)
+      setHabilitaciones([])
+    }
   }
 
   useEffect(() => { fetchUsuarios(); fetchHabilitaciones() }, [])
 
   const buscarUsuario = async () => {
     if (!searchQuery.trim()) return
-    const res = await fetch(`${API_USUARIOS}?search=${encodeURIComponent(searchQuery)}`)
-    const data = await res.json()
-    setSearchResults(data)
-    setSelectedSearchIds([])
+    try {
+      const res = await fetch(`${API_USUARIOS}?search=${encodeURIComponent(searchQuery)}`)
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      setSearchResults(data)
+      setSelectedSearchIds([])
+    } catch (error) {
+      console.error('No se pudo buscar el usuario:', error)
+      setSearchResults([])
+      setSelectedSearchIds([])
+    }
   }
 
   const handleSearchKeyDown = (e) => {
@@ -57,7 +78,7 @@ function App() {
     if (ids) params.set('ids', ids)
     if (searchMetaText) params.set('meta', searchMetaText)
     const qs = params.toString()
-    const url = `/api/usuarios/${formato}${qs ? '?' + qs : ''}`
+    const url = `${buildApiUrl(`/api/usuarios/${formato}`)}${qs ? '?' + qs : ''}`
     const res = await fetch(url)
     const blob = await res.blob()
     const link = document.createElement('a')
@@ -74,21 +95,31 @@ function App() {
     if (ids) params.set('ids', ids)
     if (searchMetaText) params.set('meta', searchMetaText)
     const qs = params.toString()
-    const url = `/api/usuarios/preview${qs ? '?' + qs : ''}`
+    const url = `${buildApiUrl('/api/usuarios/preview')}${qs ? '?' + qs : ''}`
     window.open(url, '_blank')
   }
 
   const createUsuario = async (usuario) => {
-    await fetch(API_USUARIOS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(usuario),
-    })
+    try {
+      const res = await fetch(API_USUARIOS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(usuario),
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+    } catch (error) {
+      console.error('No se pudo crear el usuario:', error)
+    }
     fetchUsuarios()
   }
 
   const deleteUsuario = async (id) => {
-    await fetch(`${API_USUARIOS}/${id}`, { method: 'DELETE' })
+    try {
+      const res = await fetch(`${API_USUARIOS}/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+    } catch (error) {
+      console.error('No se pudo eliminar el usuario:', error)
+    }
     fetchUsuarios()
   }
 
