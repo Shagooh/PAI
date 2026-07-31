@@ -47,7 +47,7 @@ function App() {
   const [usuarios, setUsuarios] = useState(() => readCache('usuarios', []))
   const [habilitaciones, setHabilitaciones] = useState(() => readCache('habilitaciones', []))
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState(null)
+  const [searchResults, setSearchResults] = useState([])
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
   const [searchMetaText, setSearchMetaText] = useState('')
   const [editingUser, setEditingUser] = useState(null)
@@ -110,20 +110,34 @@ function App() {
     }
   }, [])
 
-  const buscarUsuario = async () => {
-    if (!searchQuery.trim()) return
-    try {
-      const res = await fetch(`${API_USUARIOS}?search=${encodeURIComponent(searchQuery)}`)
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-      const data = await res.json()
-      setSearchResults(data)
+  const applySearchFilter = (query) => {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    if (!normalizedQuery) {
+      setSearchResults(usuarios)
       setSelectedSearchIds([])
-    } catch (error) {
-      console.error('No se pudo buscar el usuario:', error)
-      setSearchResults([])
-      setSelectedSearchIds([])
+      return
     }
+
+    const normalizedRut = normalizedQuery.replace(/[.-]/g, '')
+
+    const filtered = usuarios.filter((user) => {
+      const rut = `${user.rut || ''}`.toLowerCase().replace(/[.-]/g, '')
+      const haystack = `${rut} ${user.nombre || ''} ${user.apellido || ''}`.toLowerCase()
+      return haystack.includes(normalizedRut)
+    })
+
+    setSearchResults(filtered)
+    setSelectedSearchIds([])
   }
+
+  const buscarUsuario = () => {
+    applySearchFilter(searchQuery)
+  }
+
+  useEffect(() => {
+    applySearchFilter(searchQuery)
+  }, [usuarios, searchQuery])
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') buscarUsuario()
@@ -252,28 +266,28 @@ function App() {
             <div className="card-header fw-bold">Buscar Usuario</div>
             <div className="card-body">
               <div className="input-group mb-3">
-                <input type="text" className="form-control" placeholder="Nombre o apellido..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} />
-                <button className="btn btn-primary" onClick={buscarUsuario}>Buscar</button>
+                <input type="text" className="form-control" placeholder="RUT, nombre o apellido..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} />
+                <button className="btn btn-primary" onClick={buscarUsuario}>
+                  Buscar
+                </button>
               </div>
 
-              {searchResults !== null && (
+              {(
                 <>
                   {searchResults.length === 0 ? (
-                    <p className="text-muted">No se encontraron usuarios.</p>
+                    <p className="text-muted">{usuarios.length === 0 ? 'No hay usuarios registrados.' : 'No se encontraron usuarios.'}</p>
                   ) : (
                     <>
                       <table className="table table-striped">
                         <thead className="table-dark">
                           <tr>
-                            <th>
+                            <th style={{ width: '40px' }}>
                               <input type="checkbox" className="form-check-input" onChange={toggleAllSearch} checked={selectedSearchIds.length === searchResults.length && searchResults.length > 0} />
                             </th>
-                            <th>RUT</th>
-                            <th>Nombre</th>
-                            <th>Apellido</th>
-                            <th>Edad</th>
-                            <th>Descripción</th>
-                            <th>Habilitado</th>
+                            <th style={{ width: '160px' }}>RUT</th>
+                            <th style={{ width: '200px' }}>Nombre</th>
+                            <th style={{ width: '200px' }}>Apellido</th>
+                            <th style={{ width: '80px' }}>Edad</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -282,16 +296,10 @@ function App() {
                               <td>
                                 <input type="checkbox" className="form-check-input" checked={selectedSearchIds.includes(u.rut)} onChange={() => toggleSearch(u.rut)} />
                               </td>
-                              <td>{u.rut}</td>
-                              <td>{u.nombre}</td>
-                              <td>{u.apellido}</td>
-                              <td>{u.edad}</td>
-                              <td>
-                                <span className={`badge ${u.edad >= 18 ? 'bg-success' : 'bg-warning'}`}>{u.descripcion}</span>
-                              </td>
-                              <td>
-                                <span className={`badge ${u.edad >= 18 ? 'bg-primary' : 'bg-secondary'}`}>{u.habilitado}</span>
-                              </td>
+                              <td style={{ whiteSpace: 'nowrap' }}>{u.rut}</td>
+                              <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
+                              <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
+                              <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
                             </tr>
                           ))}
                         </tbody>

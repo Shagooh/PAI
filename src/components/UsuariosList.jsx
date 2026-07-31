@@ -18,8 +18,6 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
                 <th>Nombre</th>
                 <th>Apellido</th>
                 <th>Edad</th>
-                <th>Descripción</th>
-                <th>Habilitado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -30,16 +28,6 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
                   <td>{u.nombre}</td>
                   <td>{u.apellido}</td>
                   <td>{u.edad}</td>
-                  <td>
-                    <span className={`badge ${u.edad >= 18 ? 'bg-success' : 'bg-warning'}`}>
-                      {u.descripcion}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`badge ${u.edad >= 18 ? 'bg-primary' : 'bg-secondary'}`}>
-                      {u.habilitado}
-                    </span>
-                  </td>
                   <td>
                     <button className="btn btn-sm btn-warning" onClick={() => onEdit(u)}>Editar</button>
                   </td>
