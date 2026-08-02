@@ -292,12 +292,11 @@ function App() {
     if (ids) params.set('ids', ids)
     if (searchMetaText) params.set('meta', searchMetaText)
 
-    const primarySelection = Object.entries(selectedObjectivesByDimension).find(([, objective]) => Boolean(objective))
-    if (primarySelection) {
-      const [dimension, objective] = primarySelection
-      params.set('dimension', dimension)
-      params.set('objetivo', objective)
-    }
+    const selections = Object.entries(selectedObjectivesByDimension).filter(([, objective]) => Boolean(objective))
+    selections.forEach(([dimension, objective]) => {
+      params.append('dimension', dimension)
+      params.append('objetivo', objective)
+    })
 
     const qs = params.toString()
     const url = `${buildApiUrl('/api/usuarios/preview')}${qs ? '?' + qs : ''}`
