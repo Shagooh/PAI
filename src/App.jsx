@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
 import dimensionesObjetivosData from './assets/lista-dimensiones-objetivos.json'
+import decisionesDimensionData from './assets/decisiones-dimension.json'
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 const API_USUARIOS = buildApiUrl('/api/usuarios')
 const API_HABILITACIONES = buildApiUrl('/api/habilitaciones')
+const WORD_EXPORT_PATH = import.meta.env.VITE_WORD_EXPORT_PATH || '/api/usuarios/word'
+const API_WORD_EXPORT = buildApiUrl(WORD_EXPORT_PATH)
 const CACHE_KEY = 'crud-app-cache-v1'
 const CACHE_TTL_MS = 5 * 60 * 1000
 const dimensionGroups = dimensionesObjetivosData?.Grupos || []
@@ -15,6 +18,80 @@ const objectivesByDimension = dimensionGroups.reduce((acc, group) => {
   acc[group.Dimension] = group.Objetivos || []
   return acc
 }, {})
+const decisionRules = decisionesDimensionData?.reglas || []
+
+const normalizeText = (value = '') =>
+  value
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+
+const decisionsByDimensionAndObjective = decisionRules.reduce((acc, rule) => {
+  const dimension = rule?.Dimension
+  if (!dimension) return acc
+
+  const objectiveMap = acc[dimension] || {}
+  const options = rule?.ObjetivosDisponibles || []
+
+  options.forEach((option) => {
+    const objective = option?.Objetivo
+    if (!objective) return
+    const key = normalizeText(objective)
+    if (!objectiveMap[key]) objectiveMap[key] = []
+    objectiveMap[key].push(option)
+  })
+
+  acc[dimension] = objectiveMap
+  return acc
+}, {})
+
+const buildListText = (items = []) => items.map((item) => `- ${item}`).join('\n')
+const buildEditableText = (value) => {
+  if (Array.isArray(value)) return buildListText(value)
+  if (value === null || value === undefined) return ''
+  return `${value}`
+}
+
+const parseContentDispositionFilename = (contentDisposition) => {
+  if (!contentDisposition) return ''
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].replace(/"/g, ''))
+    } catch {
+      return utf8Match[1].replace(/"/g, '')
+    }
+  }
+
+  const plainMatch = contentDisposition.match(/filename=([^;]+)/i)
+  if (!plainMatch?.[1]) return ''
+  return plainMatch[1].trim().replace(/^"|"$/g, '')
+}
+
+const downloadBlob = (blob, filename) => {
+  const objectUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(objectUrl)
+}
+
+const base64ToBlob = (rawBase64, mimeType) => {
+  const cleanBase64 = (rawBase64 || '').replace(/^data:.*;base64,/, '')
+  const binary = window.atob(cleanBase64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new Blob([bytes], { type: mimeType })
+}
 
 const getCacheStore = () => {
   if (typeof window === 'undefined') return {}
@@ -142,6 +219,13 @@ function App() {
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
   const [searchMetaText, setSearchMetaText] = useState('')
   const [selectedObjectivesByDimension, setSelectedObjectivesByDimension] = useState({})
+  const [strategyTextByDimension, setStrategyTextByDimension] = useState({})
+  const [indicatorTextByDimension, setIndicatorTextByDimension] = useState({})
+  const [deadlineTextByDimension, setDeadlineTextByDimension] = useState({})
+  const [ownerTextByDimension, setOwnerTextByDimension] = useState({})
+  const [evaluationTextByDimension, setEvaluationTextByDimension] = useState({})
+  const [isGeneratingWord, setIsGeneratingWord] = useState(false)
+  const [wordDownloadError, setWordDownloadError] = useState('')
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState({ rut: '', nombre: '', apellido: '', edad: '' })
   const [view, setView] = useState('buscar')
@@ -276,6 +360,44 @@ function App() {
 
   const handleObjectiveSelection = (dimension, objective) => {
     setSelectedObjectivesByDimension((prev) => ({ ...prev, [dimension]: objective }))
+
+    const objectiveKey = normalizeText(objective)
+    const decisionOptions = decisionsByDimensionAndObjective[dimension]?.[objectiveKey] || []
+    const suggestedOption = decisionOptions[0] || null
+
+    setStrategyTextByDimension((prev) => ({
+      ...prev,
+      [dimension]: buildListText(suggestedOption?.Estrategia || []),
+    }))
+
+    setIndicatorTextByDimension((prev) => ({
+      ...prev,
+      [dimension]: buildListText(suggestedOption?.Indicador || []),
+    }))
+
+    setDeadlineTextByDimension((prev) => ({
+      ...prev,
+      [dimension]: buildEditableText(
+        suggestedOption?.Plazo ?? suggestedOption?.plazo ?? ''
+      ),
+    }))
+
+    setOwnerTextByDimension((prev) => ({
+      ...prev,
+      [dimension]: buildEditableText(
+        suggestedOption?.Responsable ?? suggestedOption?.responsable ?? ''
+      ),
+    }))
+
+    setEvaluationTextByDimension((prev) => ({
+      ...prev,
+      [dimension]: buildEditableText(
+        suggestedOption?.Evaluacion ??
+        suggestedOption?.['Evaluación'] ??
+        suggestedOption?.evaluacion ??
+        ''
+      ),
+    }))
   }
 
   const handleObjectiveTextChange = (dimension, value) => {
@@ -284,6 +406,31 @@ function App() {
 
   const resetObjective = (dimension) => {
     setSelectedObjectivesByDimension((prev) => ({ ...prev, [dimension]: '' }))
+    setStrategyTextByDimension((prev) => ({ ...prev, [dimension]: '' }))
+    setIndicatorTextByDimension((prev) => ({ ...prev, [dimension]: '' }))
+    setDeadlineTextByDimension((prev) => ({ ...prev, [dimension]: '' }))
+    setOwnerTextByDimension((prev) => ({ ...prev, [dimension]: '' }))
+    setEvaluationTextByDimension((prev) => ({ ...prev, [dimension]: '' }))
+  }
+
+  const handleStrategyTextChange = (dimension, value) => {
+    setStrategyTextByDimension((prev) => ({ ...prev, [dimension]: value }))
+  }
+
+  const handleIndicatorTextChange = (dimension, value) => {
+    setIndicatorTextByDimension((prev) => ({ ...prev, [dimension]: value }))
+  }
+
+  const handleDeadlineTextChange = (dimension, value) => {
+    setDeadlineTextByDimension((prev) => ({ ...prev, [dimension]: value }))
+  }
+
+  const handleOwnerTextChange = (dimension, value) => {
+    setOwnerTextByDimension((prev) => ({ ...prev, [dimension]: value }))
+  }
+
+  const handleEvaluationTextChange = (dimension, value) => {
+    setEvaluationTextByDimension((prev) => ({ ...prev, [dimension]: value }))
   }
 
   const abrirPreviewBusqueda = () => {
@@ -301,6 +448,89 @@ function App() {
     const qs = params.toString()
     const url = `${buildApiUrl('/api/usuarios/preview')}${qs ? '?' + qs : ''}`
     window.open(url, '_blank')
+  }
+
+  const generarWordBusqueda = async () => {
+    if (selectedSearchIds.length === 0) return
+
+    setWordDownloadError('')
+    setIsGeneratingWord(true)
+
+    const selections = Object.entries(selectedObjectivesByDimension).filter(([, objective]) => Boolean(objective))
+    const decisiones = selections.map(([dimension, objetivo]) => ({
+      dimension,
+      objetivo,
+      estrategia: strategyTextByDimension[dimension] || '',
+      indicador: indicatorTextByDimension[dimension] || '',
+      plazo: deadlineTextByDimension[dimension] || '',
+      responsable: ownerTextByDimension[dimension] || '',
+      evaluacion: evaluationTextByDimension[dimension] || '',
+    }))
+
+    const usuariosSeleccionados = usuarios
+      .filter((usuario) => selectedSearchIds.includes(usuario.rut))
+      .map((usuario) => ({
+        rut: usuario.rut,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        edad: usuario.edad,
+      }))
+
+    const payload = {
+      ids: selectedSearchIds,
+      meta: searchMetaText,
+      usuarios: usuariosSeleccionados,
+      decisiones,
+    }
+
+    try {
+      const res = await fetch(API_WORD_EXPORT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '')
+        throw new Error(errorText || `Error ${res.status} al generar el documento`)
+      }
+
+      const contentType = res.headers.get('content-type') || ''
+
+      if (contentType.includes('application/json')) {
+        const data = await res.json()
+
+        if (data?.downloadUrl) {
+          window.open(data.downloadUrl, '_blank')
+          return
+        }
+
+        if (data?.fileUrl) {
+          window.open(data.fileUrl, '_blank')
+          return
+        }
+
+        if (data?.fileBase64 || data?.base64) {
+          const fileName = data.fileName || `plan-intervencion-${Date.now()}.docx`
+          const mimeType = data.mimeType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          const blob = base64ToBlob(data.fileBase64 || data.base64, mimeType)
+          downloadBlob(blob, fileName)
+          return
+        }
+
+        throw new Error('El backend no devolvio un archivo descargable')
+      }
+
+      const blob = await res.blob()
+      const contentDisposition = res.headers.get('content-disposition') || ''
+      const fileName = parseContentDispositionFilename(contentDisposition) || `plan-intervencion-${Date.now()}.docx`
+      downloadBlob(blob, fileName)
+    } catch (error) {
+      console.error('No se pudo generar/descargar el Word:', error)
+      setWordDownloadError(error?.message || 'No se pudo descargar el archivo Word')
+    } finally {
+      setIsGeneratingWord(false)
+    }
   }
 
   const createUsuario = async (usuario) => {
@@ -468,6 +698,73 @@ function App() {
                                           placeholder="Ajuste el objetivo aquí..."
                                           style={{ minHeight: '64px', height: 'calc(100% - 40px)' }}
                                         />
+                                        <div className="row g-2 mt-1">
+                                          <div className="col-12 col-xl-6">
+                                            <div className="border rounded p-2 h-100 bg-light-subtle">
+                                              <label className="form-label fw-bold mb-1">Estrategia (editable)</label>
+                                              <textarea
+                                                className="form-control"
+                                                rows="4"
+                                                value={strategyTextByDimension[dimension] || ''}
+                                                onChange={(e) => handleStrategyTextChange(dimension, e.target.value)}
+                                                placeholder="Se cargarán estrategias desde decisiones-dimension..."
+                                                style={{ minHeight: '110px' }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="col-12 col-xl-6">
+                                            <div className="border rounded p-2 h-100 bg-light-subtle">
+                                              <label className="form-label fw-bold mb-1">Indicador (editable)</label>
+                                              <textarea
+                                                className="form-control"
+                                                rows="4"
+                                                value={indicatorTextByDimension[dimension] || ''}
+                                                onChange={(e) => handleIndicatorTextChange(dimension, e.target.value)}
+                                                placeholder="Se cargarán indicadores desde decisiones-dimension..."
+                                                style={{ minHeight: '110px' }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="col-12 col-md-4">
+                                            <div className="border rounded p-2 h-100 bg-light-subtle">
+                                              <label className="form-label fw-bold mb-1">Plazo</label>
+                                              <textarea
+                                                className="form-control"
+                                                rows="3"
+                                                value={deadlineTextByDimension[dimension] || ''}
+                                                onChange={(e) => handleDeadlineTextChange(dimension, e.target.value)}
+                                                placeholder="Defina plazo..."
+                                                style={{ minHeight: '90px' }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="col-12 col-md-4">
+                                            <div className="border rounded p-2 h-100 bg-light-subtle">
+                                              <label className="form-label fw-bold mb-1">Responsable</label>
+                                              <textarea
+                                                className="form-control"
+                                                rows="3"
+                                                value={ownerTextByDimension[dimension] || ''}
+                                                onChange={(e) => handleOwnerTextChange(dimension, e.target.value)}
+                                                placeholder="Defina responsable..."
+                                                style={{ minHeight: '90px' }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="col-12 col-md-4">
+                                            <div className="border rounded p-2 h-100 bg-light-subtle">
+                                              <label className="form-label fw-bold mb-1">Evaluación</label>
+                                              <textarea
+                                                className="form-control"
+                                                rows="3"
+                                                value={evaluationTextByDimension[dimension] || ''}
+                                                onChange={(e) => handleEvaluationTextChange(dimension, e.target.value)}
+                                                placeholder="Defina evaluación..."
+                                                style={{ minHeight: '90px' }}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -475,13 +772,23 @@ function App() {
                               })}
                             </div>
 
-                            <label className="form-label fw-bold mt-3">META</label>
+                            <label className="form-label fw-bold mt-3 mb-1">META</label>
                             <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
 
-                            <div className="mt-3 d-flex justify-content-end">
-                              <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
-                                Vista previa ({selectedSearchIds.length})
-                              </button>
+                            <div className="mt-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                              <div className="small text-danger">{wordDownloadError}</div>
+                              <div className="d-flex gap-2 ms-md-auto">
+                                <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
+                                  Vista previa ({selectedSearchIds.length})
+                                </button>
+                                <button
+                                  className="btn btn-success"
+                                  onClick={generarWordBusqueda}
+                                  disabled={selectedSearchIds.length === 0 || isGeneratingWord}
+                                >
+                                  {isGeneratingWord ? 'Generando...' : 'Generar Word'}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )}
