@@ -227,7 +227,16 @@ function App() {
   const [isGeneratingWord, setIsGeneratingWord] = useState(false)
   const [wordDownloadError, setWordDownloadError] = useState('')
   const [editingUser, setEditingUser] = useState(null)
-  const [editForm, setEditForm] = useState({ rut: '', nombre: '', apellido: '', edad: '' })
+  const [editForm, setEditForm] = useState({
+    rut: '',
+    nombre: '',
+    apellido: '',
+    edad: '',
+    fecha_nacimiento: '',
+    equipo_tratante: '',
+    estado_motivacional: '',
+    programa: ''
+  })
   const [view, setView] = useState('buscar')
 
   const fetchUsuarios = async (forceRefresh = false) => {
@@ -299,7 +308,7 @@ function App() {
 
     const filtered = usuarios.filter((user) => {
       const rut = `${user.rut || ''}`.toLowerCase().replace(/[.-]/g, '')
-      const haystack = `${rut} ${user.nombre || ''} ${user.apellido || ''}`.toLowerCase()
+      const haystack = `${rut} ${user.nombre || ''} ${user.apellido || ''} ${user.equipo_tratante || ''} ${user.estado_motivacional || ''} ${user.programa || ''}`.toLowerCase()
       return haystack.includes(normalizedRut)
     })
 
@@ -331,7 +340,11 @@ function App() {
       rut: user.rut || '',
       nombre: user.nombre || '',
       apellido: user.apellido || '',
-      edad: user.edad?.toString() || ''
+      edad: user.edad?.toString() || '',
+      fecha_nacimiento: user.fecha_nacimiento || '',
+      equipo_tratante: user.equipo_tratante || '',
+      estado_motivacional: user.estado_motivacional || '',
+      programa: user.programa || ''
     })
     setSelectedSearchIds([user.rut])
     setSearchMetaText(user.meta || '')
@@ -344,7 +357,16 @@ function App() {
 
   const cancelEditUser = () => {
     setEditingUser(null)
-    setEditForm({ rut: '', nombre: '', apellido: '', edad: '' })
+    setEditForm({
+      rut: '',
+      nombre: '',
+      apellido: '',
+      edad: '',
+      fecha_nacimiento: '',
+      equipo_tratante: '',
+      estado_motivacional: '',
+      programa: ''
+    })
     setSelectedSearchIds([])
     setSearchMetaText('')
   }
@@ -474,6 +496,10 @@ function App() {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         edad: usuario.edad,
+        fecha_nacimiento: usuario.fecha_nacimiento || '',
+        equipo_tratante: usuario.equipo_tratante || '',
+        estado_motivacional: usuario.estado_motivacional || '',
+        programa: usuario.programa || '',
       }))
 
     const payload = {
@@ -573,13 +599,26 @@ function App() {
         nombre: updatedUser.nombre || editForm.nombre,
         apellido: updatedUser.apellido || editForm.apellido,
         edad: Number(updatedUser.edad ?? editForm.edad),
+        fecha_nacimiento: updatedUser.fecha_nacimiento ?? editForm.fecha_nacimiento,
+        equipo_tratante: updatedUser.equipo_tratante ?? editForm.equipo_tratante,
+        estado_motivacional: updatedUser.estado_motivacional ?? editForm.estado_motivacional,
+        programa: updatedUser.programa ?? editForm.programa,
         meta: searchMetaText,
       }
 
       setUsuarios((prev) => prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)))
       setSearchResults((prev) => prev ? prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)) : prev)
       setEditingUser(null)
-      setEditForm({ rut: '', nombre: '', apellido: '', edad: '' })
+      setEditForm({
+        rut: '',
+        nombre: '',
+        apellido: '',
+        edad: '',
+        fecha_nacimiento: '',
+        equipo_tratante: '',
+        estado_motivacional: '',
+        programa: ''
+      })
       setSelectedSearchIds([normalizedUser.rut])
       setSearchMetaText(normalizedUser.meta || '')
     } catch (error) {
@@ -637,6 +676,10 @@ function App() {
                               <th style={{ width: '200px' }}>Nombre</th>
                               <th style={{ width: '200px' }}>Apellido</th>
                               <th style={{ width: '80px' }}>Edad</th>
+                              <th style={{ width: '170px' }}>Fecha nacimiento</th>
+                              <th style={{ width: '180px' }}>Equipo tratante</th>
+                              <th style={{ width: '180px' }}>Estado motivacional</th>
+                              <th style={{ width: '160px' }}>Programa</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -649,6 +692,10 @@ function App() {
                                 <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
                                 <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
                                 <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{u.fecha_nacimiento || '-'}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{u.equipo_tratante || '-'}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{u.estado_motivacional || '-'}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{u.programa || '-'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -834,6 +881,22 @@ function App() {
                         <label className="form-label">Edad</label>
                         <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
                       </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Fecha de nacimiento</label>
+                        <input name="fecha_nacimiento" type="date" className="form-control" value={editForm.fecha_nacimiento} onChange={handleEditFormChange} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Equipo tratante</label>
+                        <input name="equipo_tratante" className="form-control" value={editForm.equipo_tratante} onChange={handleEditFormChange} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Estado motivacional</label>
+                        <input name="estado_motivacional" className="form-control" value={editForm.estado_motivacional} onChange={handleEditFormChange} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Programa</label>
+                        <input name="programa" className="form-control" value={editForm.programa} onChange={handleEditFormChange} />
+                      </div>
                       <div className="col-md-2 d-flex align-items-end gap-2">
                         <button type="submit" className="btn btn-success w-100">Guardar</button>
                         <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelEditUser}>Cancelar</button>
@@ -874,6 +937,22 @@ function App() {
                       <div className="col-md-2">
                         <label className="form-label">Edad</label>
                         <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Fecha de nacimiento</label>
+                        <input name="fecha_nacimiento" type="date" className="form-control" value={editForm.fecha_nacimiento} onChange={handleEditFormChange} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Equipo tratante</label>
+                        <input name="equipo_tratante" className="form-control" value={editForm.equipo_tratante} onChange={handleEditFormChange} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Estado motivacional</label>
+                        <input name="estado_motivacional" className="form-control" value={editForm.estado_motivacional} onChange={handleEditFormChange} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Programa</label>
+                        <input name="programa" className="form-control" value={editForm.programa} onChange={handleEditFormChange} />
                       </div>
                       <div className="col-md-2 d-flex align-items-end gap-2">
                         <button type="submit" className="btn btn-success w-100">Guardar</button>

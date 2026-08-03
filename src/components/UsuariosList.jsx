@@ -18,6 +18,10 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
                 <th>Nombre</th>
                 <th>Apellido</th>
                 <th>Edad</th>
+                <th>Fecha nacimiento</th>
+                <th>Equipo tratante</th>
+                <th>Estado motivacional</th>
+                <th>Programa</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -28,6 +32,10 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
                   <td>{u.nombre}</td>
                   <td>{u.apellido}</td>
                   <td>{u.edad}</td>
+                  <td>{u.fecha_nacimiento || '-'}</td>
+                  <td>{u.equipo_tratante || '-'}</td>
+                  <td>{u.estado_motivacional || '-'}</td>
+                  <td>{u.programa || '-'}</td>
                   <td>
                     <button className="btn btn-sm btn-warning" onClick={() => onEdit(u)}>Editar</button>
                   </td>

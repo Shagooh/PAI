@@ -1,7 +1,16 @@
 import { useState } from 'react'
 
 function UsuarioForm({ onSubmit }) {
-  const [form, setForm] = useState({ rut: '', nombre: '', apellido: '', edad: '' })
+  const [form, setForm] = useState({
+    rut: '',
+    nombre: '',
+    apellido: '',
+    edad: '',
+    fecha_nacimiento: '',
+    equipo_tratante: '',
+    estado_motivacional: '',
+    programa: ''
+  })
 
   const rutRegex = /^\d{1,2}\.\d{3}\.\d{3}-[\dKk]$/
 
@@ -41,7 +50,16 @@ function UsuarioForm({ onSubmit }) {
     if (!form.rut || !form.nombre || !form.apellido || !form.edad) return
     if (!rutRegex.test(form.rut)) return
     onSubmit({ ...form, edad: parseInt(form.edad) })
-    setForm({ rut: '', nombre: '', apellido: '', edad: '' })
+    setForm({
+      rut: '',
+      nombre: '',
+      apellido: '',
+      edad: '',
+      fecha_nacimiento: '',
+      equipo_tratante: '',
+      estado_motivacional: '',
+      programa: ''
+    })
   }
 
   const rutValido = form.rut === '' || rutRegex.test(form.rut)
@@ -68,6 +86,22 @@ function UsuarioForm({ onSubmit }) {
             <div className="col-md-2">
               <label className="form-label">Edad</label>
               <input name="edad" type="number" min="1" className="form-control" value={form.edad} onChange={handleChange} required />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Fecha de nacimiento</label>
+              <input name="fecha_nacimiento" type="date" className="form-control" value={form.fecha_nacimiento} onChange={handleChange} />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Equipo tratante</label>
+              <input name="equipo_tratante" className="form-control" value={form.equipo_tratante} onChange={handleChange} />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Estado motivacional</label>
+              <input name="estado_motivacional" className="form-control" value={form.estado_motivacional} onChange={handleChange} />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Programa</label>
+              <input name="programa" className="form-control" value={form.programa} onChange={handleChange} />
             </div>
             <div className="col-md-1 d-flex align-items-end">
               <button type="submit" className="btn btn-primary w-100">Guardar</button>
