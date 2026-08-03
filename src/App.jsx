@@ -772,7 +772,20 @@ function App() {
                               })}
                             </div>
 
-                            <label className="form-label fw-bold mt-3 mb-1">META</label>
+                            <div className="d-flex align-items-center justify-content-between mt-3 mb-1">
+                              <label className="form-label fw-bold mb-0">META</label>
+                              <button
+                                type="button"
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => setSearchMetaText('')}
+                                title="Reiniciar meta"
+                                aria-label="Reiniciar meta"
+                                disabled={!searchMetaText}
+                                style={{ height: '38px', minHeight: '38px', paddingTop: '0.25rem', paddingBottom: '0.25rem', marginLeft: '2px' }}
+                              >
+                                Reiniciar
+                              </button>
+                            </div>
                             <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
 
                             <div className="mt-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
