@@ -1,3 +1,24 @@
+const formatDateForDisplay = (value) => {
+  if (!value) return ''
+
+  const rawValue = `${value}`.trim()
+  if (!rawValue) return ''
+
+  const isoMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    return `${day}/${month}/${year.slice(-2)}`
+  }
+
+  const compactMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+  if (compactMatch) {
+    const [, day, month, year] = compactMatch
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${String(year).slice(-2)}`
+  }
+
+  return rawValue
+}
+
 function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
   return (
     <div className="card mt-4">
@@ -32,7 +53,7 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
                   <td>{u.nombre}</td>
                   <td>{u.apellido}</td>
                   <td>{u.edad}</td>
-                  <td>{u.fecha_nacimiento || '-'}</td>
+                  <td>{formatDateForDisplay(u.fecha_nacimiento) || '-'}</td>
                   <td>{u.equipo_tratante || '-'}</td>
                   <td>{u.estado_motivacional || '-'}</td>
                   <td>{u.programa || '-'}</td>

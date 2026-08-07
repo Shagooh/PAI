@@ -1,5 +1,34 @@
 import { useState } from 'react'
 
+const formatDateForDisplay = (value) => {
+  if (!value) return ''
+
+  const rawValue = `${value}`.trim()
+  if (!rawValue) return ''
+
+  const isoMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    return `${day}/${month}/${year}`
+  }
+
+  const compactMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+  if (compactMatch) {
+    const [, day, month, year] = compactMatch
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${String(year)}`
+  }
+
+  return rawValue
+}
+
+const formatDateForInput = (value) => {
+  const digits = `${value}`.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  if (digits.length <= 6) return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
 function UsuarioForm({ onSubmit }) {
   const [form, setForm] = useState({
     rut: '',
@@ -42,6 +71,7 @@ function UsuarioForm({ onSubmit }) {
     const { name, value } = e.target
     if (name === 'rut') return setForm({ ...form, rut: formatRut(value) })
     if (name === 'nombre' || name === 'apellido') return setForm({ ...form, [name]: value.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]/g, '') })
+    if (name === 'fecha_nacimiento') return setForm({ ...form, fecha_nacimiento: formatDateForInput(value) })
     setForm({ ...form, [name]: value })
   }
 
@@ -89,7 +119,7 @@ function UsuarioForm({ onSubmit }) {
             </div>
             <div className="col-md-3">
               <label className="form-label">Fecha de nacimiento</label>
-              <input name="fecha_nacimiento" type="date" className="form-control" value={form.fecha_nacimiento} onChange={handleChange} />
+              <input name="fecha_nacimiento" type="text" className="form-control" value={form.fecha_nacimiento} onChange={handleChange} placeholder="dd/mm/yyyy" pattern="^\d{2}/\d{2}/\d{4}$" title="Formato: dd/mm/yyyy" maxLength={10} inputMode="numeric" autoComplete="off" />
             </div>
             <div className="col-md-3">
               <label className="form-label">Equipo tratante</label>
