@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
+import EditarUsuarioCard from './components/EditarUsuarioCard'
 import dimensionesObjetivosData from './assets/lista-dimensiones-objetivos.json'
 import decisionesDimensionData from './assets/decisiones-dimension.json'
+import { EMPTY_USER_FORM, formatDateForDisplay, formatDateForInput } from './utils/userUtils'
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
@@ -28,35 +30,6 @@ const normalizeText = (value = '') =>
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
-
-const formatDateForDisplay = (value) => {
-  if (!value) return ''
-
-  const rawValue = `${value}`.trim()
-  if (!rawValue) return ''
-
-  const isoMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (isoMatch) {
-    const [, year, month, day] = isoMatch
-    return `${day}/${month}/${year}`
-  }
-
-  const compactMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
-  if (compactMatch) {
-    const [, day, month, year] = compactMatch
-    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${String(year)}`
-  }
-
-  return rawValue
-}
-
-const formatDateForInput = (value) => {
-  const digits = `${value}`.replace(/\D/g, '').slice(0, 8)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
-  if (digits.length <= 6) return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-}
 
 const decisionsByDimensionAndObjective = decisionRules.reduce((acc, rule) => {
   const dimension = rule?.Dimension
@@ -256,16 +229,7 @@ function App() {
   const [isGeneratingWord, setIsGeneratingWord] = useState(false)
   const [wordDownloadError, setWordDownloadError] = useState('')
   const [editingUser, setEditingUser] = useState(null)
-  const [editForm, setEditForm] = useState({
-    rut: '',
-    nombre: '',
-    apellido: '',
-    edad: '',
-    fecha_nacimiento: '',
-    equipo_tratante: '',
-    estado_motivacional: '',
-    programa: ''
-  })
+  const [editForm, setEditForm] = useState(EMPTY_USER_FORM)
   const [view, setView] = useState('buscar')
 
   const fetchUsuarios = async (forceRefresh = false) => {
@@ -387,16 +351,7 @@ function App() {
 
   const cancelEditUser = () => {
     setEditingUser(null)
-    setEditForm({
-      rut: '',
-      nombre: '',
-      apellido: '',
-      edad: '',
-      fecha_nacimiento: '',
-      equipo_tratante: '',
-      estado_motivacional: '',
-      programa: ''
-    })
+    setEditForm(EMPTY_USER_FORM)
     setSelectedSearchIds([])
     setSearchMetaText('')
   }
@@ -639,16 +594,7 @@ function App() {
       setUsuarios((prev) => prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)))
       setSearchResults((prev) => prev ? prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)) : prev)
       setEditingUser(null)
-      setEditForm({
-        rut: '',
-        nombre: '',
-        apellido: '',
-        edad: '',
-        fecha_nacimiento: '',
-        equipo_tratante: '',
-        estado_motivacional: '',
-        programa: ''
-      })
+      setEditForm(EMPTY_USER_FORM)
       setSelectedSearchIds([normalizedUser.rut])
       setSearchMetaText(normalizedUser.meta || '')
     } catch (error) {
@@ -889,53 +835,13 @@ function App() {
               </div>
             </div>
 
-            {editingUser && (
-              <div className="card mt-4">
-                <div className="card-header fw-bold">Editar Usuario</div>
-                <div className="card-body">
-                  <form onSubmit={updateUsuario}>
-                    <div className="row g-3">
-                      <div className="col-md-3">
-                        <label className="form-label">RUT</label>
-                        <input name="rut" className="form-control" value={editForm.rut} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Nombre</label>
-                        <input name="nombre" className="form-control" value={editForm.nombre} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Apellido</label>
-                        <input name="apellido" className="form-control" value={editForm.apellido} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-2">
-                        <label className="form-label">Edad</label>
-                        <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Fecha de nacimiento</label>
-                        <input name="fecha_nacimiento" type="text" className="form-control" value={editForm.fecha_nacimiento} onChange={handleEditFormChange} placeholder="dd/mm/yyyy" pattern="^\d{2}/\d{2}/\d{4}$" title="Formato: dd/mm/yyyy" maxLength={10} inputMode="numeric" autoComplete="off" />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Equipo tratante</label>
-                        <input name="equipo_tratante" className="form-control" value={editForm.equipo_tratante} onChange={handleEditFormChange} />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Estado motivacional</label>
-                        <input name="estado_motivacional" className="form-control" value={editForm.estado_motivacional} onChange={handleEditFormChange} />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Programa</label>
-                        <input name="programa" className="form-control" value={editForm.programa} onChange={handleEditFormChange} />
-                      </div>
-                      <div className="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" className="btn btn-success w-100">Guardar</button>
-                        <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelEditUser}>Cancelar</button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
+            <EditarUsuarioCard
+              editingUser={editingUser}
+              form={editForm}
+              onChange={handleEditFormChange}
+              onSubmit={updateUsuario}
+              onCancel={cancelEditUser}
+            />
 
           </>
         )}
@@ -946,53 +852,13 @@ function App() {
 
             <UsuariosList usuarios={usuarios} onEdit={handleEditUser} onRefresh={refreshUsuarios} />
 
-            {editingUser && (
-              <div className="card mt-4">
-                <div className="card-header fw-bold">Editar Usuario</div>
-                <div className="card-body">
-                  <form onSubmit={updateUsuario}>
-                    <div className="row g-3">
-                      <div className="col-md-3">
-                        <label className="form-label">RUT</label>
-                        <input name="rut" className="form-control" value={editForm.rut} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Nombre</label>
-                        <input name="nombre" className="form-control" value={editForm.nombre} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Apellido</label>
-                        <input name="apellido" className="form-control" value={editForm.apellido} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-2">
-                        <label className="form-label">Edad</label>
-                        <input name="edad" type="number" min="1" className="form-control" value={editForm.edad} onChange={handleEditFormChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Fecha de nacimiento</label>
-                        <input name="fecha_nacimiento" type="text" className="form-control" value={editForm.fecha_nacimiento} onChange={handleEditFormChange} placeholder="dd/mm/yyyy" pattern="^\d{2}/\d{2}/\d{4}$" title="Formato: dd/mm/yyyy" maxLength={10} inputMode="numeric" autoComplete="off" />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Equipo tratante</label>
-                        <input name="equipo_tratante" className="form-control" value={editForm.equipo_tratante} onChange={handleEditFormChange} />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Estado motivacional</label>
-                        <input name="estado_motivacional" className="form-control" value={editForm.estado_motivacional} onChange={handleEditFormChange} />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Programa</label>
-                        <input name="programa" className="form-control" value={editForm.programa} onChange={handleEditFormChange} />
-                      </div>
-                      <div className="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" className="btn btn-success w-100">Guardar</button>
-                        <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelEditUser}>Cancelar</button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
+            <EditarUsuarioCard
+              editingUser={editingUser}
+              form={editForm}
+              onChange={handleEditFormChange}
+              onSubmit={updateUsuario}
+              onCancel={cancelEditUser}
+            />
 
             <div className="card mt-4">
               <div className="card-header d-flex justify-content-between align-items-center fw-bold w-100">

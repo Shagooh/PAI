@@ -1,76 +1,20 @@
 import { useState } from 'react'
-
-const formatDateForDisplay = (value) => {
-  if (!value) return ''
-
-  const rawValue = `${value}`.trim()
-  if (!rawValue) return ''
-
-  const isoMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (isoMatch) {
-    const [, year, month, day] = isoMatch
-    return `${day}/${month}/${year}`
-  }
-
-  const compactMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
-  if (compactMatch) {
-    const [, day, month, year] = compactMatch
-    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${String(year)}`
-  }
-
-  return rawValue
-}
-
-const formatDateForInput = (value) => {
-  const digits = `${value}`.replace(/\D/g, '').slice(0, 8)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
-  if (digits.length <= 6) return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-}
+import UsuarioFormFields from './UsuarioFormFields'
+import {
+  EMPTY_USER_FORM,
+  RUT_REGEX,
+  formatDateForInput,
+  formatRut,
+  sanitizePersonName,
+} from '../utils/userUtils'
 
 function UsuarioForm({ onSubmit }) {
-  const [form, setForm] = useState({
-    rut: '',
-    nombre: '',
-    apellido: '',
-    edad: '',
-    fecha_nacimiento: '',
-    equipo_tratante: '',
-    estado_motivacional: '',
-    programa: ''
-  })
-
-  const rutRegex = /^\d{1,2}\.\d{3}\.\d{3}-[\dKk]$/
-
-  const formatRut = (value) => {
-    let cleaned = value.replace(/[^0-9Kk]/g, '')
-    if (!cleaned) return ''
-    if (/[Kk]$/.test(cleaned)) {
-      const dv = cleaned.slice(-1).toUpperCase()
-      const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-      return body + '-' + dv
-    }
-    if (value.includes('-') && cleaned.length > 1) {
-      const dv = cleaned.slice(-1)
-      const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-      return body + '-' + dv
-    }
-    if (value.endsWith('-')) {
-      return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-'
-    }
-    if (cleaned.length > 7) {
-      const dv = cleaned.slice(-1)
-      const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-      return body + '-' + dv
-    }
-    return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  }
+  const [form, setForm] = useState(EMPTY_USER_FORM)
 
   const handleChange = (e) => {
     const { name, value } = e.target
     if (name === 'rut') return setForm({ ...form, rut: formatRut(value) })
-    if (name === 'nombre' || name === 'apellido') return setForm({ ...form, [name]: value.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]/g, '') })
+    if (name === 'nombre' || name === 'apellido') return setForm({ ...form, [name]: sanitizePersonName(value) })
     if (name === 'fecha_nacimiento') return setForm({ ...form, fecha_nacimiento: formatDateForInput(value) })
     setForm({ ...form, [name]: value })
   }
@@ -78,65 +22,29 @@ function UsuarioForm({ onSubmit }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.rut || !form.nombre || !form.apellido || !form.edad) return
-    if (!rutRegex.test(form.rut)) return
+    if (!RUT_REGEX.test(form.rut)) return
     onSubmit({ ...form, edad: parseInt(form.edad) })
-    setForm({
-      rut: '',
-      nombre: '',
-      apellido: '',
-      edad: '',
-      fecha_nacimiento: '',
-      equipo_tratante: '',
-      estado_motivacional: '',
-      programa: ''
-    })
+    setForm(EMPTY_USER_FORM)
   }
 
-  const rutValido = form.rut === '' || rutRegex.test(form.rut)
+  const rutValido = form.rut === '' || RUT_REGEX.test(form.rut)
 
   return (
     <div className="card mb-4">
       <div className="card-body">
         <h5 className="card-title">Agregar Usuario</h5>
         <form onSubmit={handleSubmit}>
-          <div className="row g-3">
-            <div className="col-md-3">
-              <label className="form-label">RUT</label>
-              <input name="rut" className={`form-control ${!rutValido ? 'is-invalid' : ''}`} value={form.rut} onChange={handleChange} placeholder="12.345.678-9" pattern="^\d{1,2}\.\d{3}\.\d{3}-[\dKk]$" title="Formato: xx.xxx.xxx-x" maxLength={12} required />
-              {!rutValido && <div className="invalid-feedback">Formato inválido. Use xx.xxx.xxx-x</div>}
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Nombre</label>
-              <input name="nombre" className="form-control" value={form.nombre} onChange={handleChange} pattern="^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]+$" title="Solo letras" required />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Apellido</label>
-              <input name="apellido" className="form-control" value={form.apellido} onChange={handleChange} pattern="^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]+$" title="Solo letras" required />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Edad</label>
-              <input name="edad" type="number" min="1" className="form-control" value={form.edad} onChange={handleChange} required />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Fecha de nacimiento</label>
-              <input name="fecha_nacimiento" type="text" className="form-control" value={form.fecha_nacimiento} onChange={handleChange} placeholder="dd/mm/yyyy" pattern="^\d{2}/\d{2}/\d{4}$" title="Formato: dd/mm/yyyy" maxLength={10} inputMode="numeric" autoComplete="off" />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Equipo tratante</label>
-              <input name="equipo_tratante" className="form-control" value={form.equipo_tratante} onChange={handleChange} />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label">Estado motivacional</label>
-              <input name="estado_motivacional" className="form-control" value={form.estado_motivacional} onChange={handleChange} />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Programa</label>
-              <input name="programa" className="form-control" value={form.programa} onChange={handleChange} />
-            </div>
-            <div className="col-md-1 d-flex align-items-end">
-              <button type="submit" className="btn btn-primary w-100">Guardar</button>
-            </div>
-          </div>
+          <UsuarioFormFields
+            form={form}
+            onChange={handleChange}
+            rutValido={rutValido}
+            programColumnClass="col-md-2"
+            actions={(
+              <div className="col-md-1 d-flex align-items-end">
+                <button type="submit" className="btn btn-primary w-100">Guardar</button>
+              </div>
+            )}
+          />
         </form>
       </div>
     </div>
