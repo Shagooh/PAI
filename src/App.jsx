@@ -612,11 +612,8 @@ function App() {
                 <div className="panel-title">Buscar Usuario</div>
               </div>
               <div className="panel-body">
-                <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                <div className="mb-3 flex flex-col gap-2">
                   <input type="text" className="ui-input" placeholder="RUT, nombre o apellido..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} />
-                  <button className="ui-btn-primary sm:min-w-[140px]" onClick={buscarUsuario}>
-                    Buscar
-                  </button>
                 </div>
 
                 {(
