@@ -30,18 +30,18 @@ function UsuarioForm({ onSubmit }) {
   const rutValido = form.rut === '' || RUT_REGEX.test(form.rut)
 
   return (
-    <div className="card mb-4">
-      <div className="card-body">
-        <h5 className="card-title">Agregar Usuario</h5>
+    <div className="panel mb-6">
+      <div className="panel-body">
+        <h5 className="mb-4 text-xl font-bold text-[#1e4033]">Agregar Usuario</h5>
         <form onSubmit={handleSubmit}>
           <UsuarioFormFields
             form={form}
             onChange={handleChange}
             rutValido={rutValido}
-            programColumnClass="col-md-2"
+            programColumnClass="md:col-span-2"
             actions={(
-              <div className="col-md-1 d-flex align-items-end">
-                <button type="submit" className="btn btn-primary w-100">Guardar</button>
+              <div className="md:col-span-1 flex items-end">
+                <button type="submit" className="ui-btn-primary w-full">Guardar</button>
               </div>
             )}
           />

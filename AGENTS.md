@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Project
-React 18 + Vite SPA ("crud-frontend") for managing users (usuarios) and decision tables (habilitaciones). UI text is Spanish; code identifiers mix English and Spanish. No backend in this repo — the API lives at `https://pai-be.vercel.app`. Bootstrap 5 is imported globally via `src/main.jsx`; styling is Bootstrap classes + inline `style` props.
+React 18 + Vite SPA ("crud-frontend") for managing users (usuarios) and decision tables (habilitaciones). UI text is Spanish; code identifiers mix English and Spanish. No backend in this repo — the API lives at `https://pai-be.vercel.app`. Styling is Tailwind CSS utility classes plus a small component layer defined in `src/index.css`.
 
 ## Commands
 - `npm run dev` — Vite dev server on port 5173

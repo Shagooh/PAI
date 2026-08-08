@@ -4,17 +4,19 @@ function EditarUsuarioCard({ editingUser, form, onChange, onSubmit, onCancel }) 
 	if (!editingUser) return null
 
 	return (
-		<div className="card mt-4">
-			<div className="card-header fw-bold">Editar Usuario</div>
-			<div className="card-body">
+		<div className="panel mt-6">
+			<div className="panel-head">
+				<div className="panel-title">Editar Usuario</div>
+			</div>
+			<div className="panel-body">
 				<form onSubmit={onSubmit}>
 					<UsuarioFormFields
 						form={form}
 						onChange={onChange}
 						actions={(
-							<div className="col-md-2 d-flex align-items-end gap-2">
-								<button type="submit" className="btn btn-success w-100">Guardar</button>
-								<button type="button" className="btn btn-outline-secondary w-100" onClick={onCancel}>Cancelar</button>
+							<div className="md:col-span-2 flex items-end gap-2">
+								<button type="submit" className="ui-btn-success w-full">Guardar</button>
+								<button type="button" className="ui-btn-outline w-full" onClick={onCancel}>Cancelar</button>
 							</div>
 						)}
 					/>

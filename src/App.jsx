@@ -163,13 +163,12 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
   }, [open])
 
   return (
-    <div className="position-relative" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
-      <label className="form-label fw-bold">{label}</label>
+    <div className="relative w-full min-w-0">
+      {label ? <label className="ui-label">{label}</label> : null}
       <button
         ref={buttonRef}
         type="button"
-        className="form-select text-start"
-        style={{ minHeight: '38px', height: '38px', width: '100%', maxWidth: '100%', whiteSpace: 'nowrap', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0, marginTop: '2px', paddingTop: '0.35rem', paddingBottom: '0.35rem', boxSizing: 'border-box' }}
+        className="ui-input h-10 truncate pr-8 text-left"
         onClick={() => !disabled && setOpen((prev) => !prev)}
         disabled={disabled}
       >
@@ -178,7 +177,7 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
       {open && !disabled && (
         <div
           ref={menuRef}
-          className="border rounded bg-white shadow-sm p-2"
+          className="panel p-2"
           style={{
             position: 'fixed',
             zIndex: 2000,
@@ -190,21 +189,25 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
             top: buttonRef.current
               ? buttonRef.current.getBoundingClientRect().bottom + 6
               : 0,
-            width: buttonRef.current ? buttonRef.current.offsetWidth : 360
+            width: buttonRef.current ? buttonRef.current.offsetWidth : 360,
           }}
         >
           {options.map((option) => (
-            <div
+            <button
               key={option}
-              className={`p-2 rounded ${value === option ? 'bg-primary text-white' : 'bg-white'}`}
-              style={{ cursor: 'pointer', whiteSpace: 'normal', wordBreak: 'break-word', width: '100%', display: 'block', boxSizing: 'border-box', overflowWrap: 'anywhere' }}
+              type="button"
+              className={`mb-1 block w-full rounded-lg px-3 py-2 text-left text-sm last:mb-0 ${value === option
+                ? 'bg-[#0f9d75] text-white'
+                : 'bg-white text-[#1f4436] hover:bg-[#edf7f2]'
+                }`}
+              style={{ overflowWrap: 'anywhere' }}
               onClick={() => {
                 onChange(option)
                 setOpen(false)
               }}
             >
               {option}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -586,27 +589,32 @@ function App() {
   }).format(new Date())
 
   return (
-    <div className="d-flex flex-column min-vh-100 position-relative">
-      <div className="container py-4 flex-grow-1 pb-5">
-        <h1 className="mb-4">Usuarios</h1>
+    <div className="relative flex min-h-screen flex-col">
+      <div className="page-shell flex-1">
+        <div className="reveal-up mb-8" style={{ '--reveal-delay': '0ms' }}>
+          <h1 className="mb-2 text-3xl font-bold text-[#153629] sm:text-4xl">Gestor de Usuarios</h1>
+          <p className="text-sm text-[#557264]">Administra usuarios y genera planes de intervención desde una interfaz unificada.</p>
+        </div>
 
-        <div className="d-flex gap-2 mb-4">
-          <button className={`btn ${view === 'buscar' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setView('buscar')}>
+        <div className="reveal-up mb-5 flex flex-wrap gap-2" style={{ '--reveal-delay': '70ms' }}>
+          <button className={`ui-btn-tab ${view === 'buscar' ? 'ui-btn-tab-active' : ''}`} onClick={() => setView('buscar')}>
             Buscar / Crear
           </button>
-          <button className={`btn ${view === 'tablas' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setView('tablas')}>
+          <button className={`ui-btn-tab ${view === 'tablas' ? 'ui-btn-tab-active' : ''}`} onClick={() => setView('tablas')}>
             Usuarios y Decisiones
           </button>
         </div>
 
         {view === 'buscar' && (
           <>
-            <div className="card mt-4">
-              <div className="card-header fw-bold">Buscar Usuario</div>
-              <div className="card-body">
-                <div className="input-group mb-3">
-                  <input type="text" className="form-control" placeholder="RUT, nombre o apellido..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} />
-                  <button className="btn btn-primary" onClick={buscarUsuario}>
+            <div className="panel reveal-up mt-4" style={{ '--reveal-delay': '130ms' }}>
+              <div className="panel-head">
+                <div className="panel-title">Buscar Usuario</div>
+              </div>
+              <div className="panel-body">
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                  <input type="text" className="ui-input" placeholder="RUT, nombre o apellido..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearchKeyDown} />
+                  <button className="ui-btn-primary sm:min-w-[140px]" onClick={buscarUsuario}>
                     Buscar
                   </button>
                 </div>
@@ -614,59 +622,61 @@ function App() {
                 {(
                   <>
                     {searchResults.length === 0 ? (
-                      <p className="text-muted">{usuarios.length === 0 ? 'No hay usuarios registrados.' : 'No se encontraron usuarios.'}</p>
+                      <p className="text-sm text-[#617f71]">{usuarios.length === 0 ? 'No hay usuarios registrados.' : 'No se encontraron usuarios.'}</p>
                     ) : (
                       <>
-                        <table className="table table-striped">
-                          <thead className="table-dark">
-                            <tr>
-                              <th style={{ width: '40px' }}>
-                                <input type="checkbox" className="form-check-input" onChange={toggleAllSearch} checked={selectedSearchIds.length === searchResults.length && searchResults.length > 0} />
-                              </th>
-                              <th style={{ width: '160px' }}>RUT</th>
-                              <th style={{ width: '200px' }}>Nombre</th>
-                              <th style={{ width: '200px' }}>Apellido</th>
-                              <th style={{ width: '80px' }}>Edad</th>
-                              <th style={{ width: '170px' }}>Fecha nacimiento</th>
-                              <th style={{ width: '180px' }}>Equipo tratante</th>
-                              <th style={{ width: '180px' }}>Estado motivacional</th>
-                              <th style={{ width: '160px' }}>Programa</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {searchResults.map((u) => (
-                              <tr key={u.rut}>
-                                <td>
-                                  <input type="checkbox" className="form-check-input" checked={selectedSearchIds.includes(u.rut)} onChange={() => toggleSearch(u.rut)} />
-                                </td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.rut}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{formatDateForDisplay(u.fecha_nacimiento) || '-'}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.equipo_tratante || '-'}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.estado_motivacional || '-'}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{u.programa || '-'}</td>
+                        <div className="ui-table-wrap">
+                          <table className="ui-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '40px' }}>
+                                  <input type="checkbox" className="ui-check" onChange={toggleAllSearch} checked={selectedSearchIds.length === searchResults.length && searchResults.length > 0} />
+                                </th>
+                                <th style={{ width: '160px' }}>RUT</th>
+                                <th style={{ width: '200px' }}>Nombre</th>
+                                <th style={{ width: '200px' }}>Apellido</th>
+                                <th style={{ width: '80px' }}>Edad</th>
+                                <th style={{ width: '170px' }}>Fecha nacimiento</th>
+                                <th style={{ width: '180px' }}>Equipo tratante</th>
+                                <th style={{ width: '180px' }}>Estado motivacional</th>
+                                <th style={{ width: '160px' }}>Programa</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {searchResults.map((u) => (
+                                <tr key={u.rut}>
+                                  <td>
+                                    <input type="checkbox" className="ui-check" checked={selectedSearchIds.includes(u.rut)} onChange={() => toggleSearch(u.rut)} />
+                                  </td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.rut}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{formatDateForDisplay(u.fecha_nacimiento) || '-'}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.equipo_tratante || '-'}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.estado_motivacional || '-'}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{u.programa || '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                         {selectedSearchIds.length > 0 && (
-                          <div className="mt-4 p-2 border rounded bg-light">
-                            <div className="d-flex flex-column gap-2">
-                              {dimensiones.map((dimension) => {
+                          <div className="mt-4 rounded-2xl border border-[#cee1d7] bg-[#f5faf8] p-3 sm:p-4">
+                            <div className="flex flex-col gap-2">
+                              {dimensiones.map((dimension, index) => {
                                 const selectedValue = selectedObjectivesByDimension[dimension] || ''
                                 const suggestedOptions = objetivosPorDimension[dimension] || []
 
                                 return (
-                                  <div className="border rounded p-2 bg-white" key={dimension}>
-                                    <div className="row g-2 align-items-center">
-                                      <div className="col-lg-3 d-flex justify-content-center">
-                                        <div className="fw-semibold small text-center">{dimension}</div>
+                                  <div className="reveal-up rounded-xl border border-[#d6e7de] bg-white p-3" key={dimension} style={{ '--reveal-delay': `${Math.min(index * 35, 280)}ms` }}>
+                                    <div className="grid items-start gap-3 lg:grid-cols-12">
+                                      <div className="flex justify-center lg:col-span-3">
+                                        <div className="text-center text-xs font-bold uppercase tracking-[0.08em] text-[#3b6654]">{dimension}</div>
                                       </div>
-                                      <div className="col-lg-9">
-                                        <div className="d-flex gap-1 align-items-end" style={{ marginTop: '2px' }}>
-                                          <div className="flex-grow-1 min-width-0" style={{ width: '90%', maxWidth: '90%' }}>
+                                      <div className="lg:col-span-9">
+                                        <div className="flex items-end gap-2">
+                                          <div className="min-w-0 flex-1">
                                             <Dropdown
                                               label=""
                                               value={selectedValue}
@@ -676,89 +686,84 @@ function App() {
                                               disabled={!suggestedOptions.length}
                                             />
                                           </div>
-                                          <div className="d-flex align-items-stretch flex-shrink-0" style={{ marginLeft: '4px' }}>
+                                          <div className="shrink-0">
                                             <button
                                               type="button"
-                                              className="btn btn-outline-secondary btn-sm"
+                                              className="ui-btn-outline h-10 px-3 py-1.5 text-xs"
                                               onClick={() => resetObjective(dimension)}
                                               title="Reiniciar selección"
-                                              style={{ height: '38px', minHeight: '38px', paddingTop: '0.25rem', paddingBottom: '0.25rem', marginLeft: '2px', alignSelf: 'flex-end' }}
                                             >
                                               Reiniciar
                                             </button>
                                           </div>
                                         </div>
                                         <textarea
-                                          className="form-control mt-2"
+                                          className="ui-textarea mt-2 min-h-[64px]"
                                           rows="2"
                                           value={selectedValue}
                                           onChange={(e) => handleObjectiveTextChange(dimension, e.target.value)}
                                           placeholder="Ajuste el objetivo aquí..."
-                                          style={{ minHeight: '64px', height: 'calc(100% - 40px)' }}
                                         />
-                                        <div className="row g-2 mt-1">
-                                          <div className="col-12 col-xl-6">
-                                            <div className="border rounded p-2 h-100 bg-light-subtle">
-                                              <label className="form-label fw-bold mb-1">Estrategia (editable)</label>
+                                        <div className="mt-2 grid gap-2 xl:grid-cols-2">
+                                          <div>
+                                            <div className="h-full rounded-xl border border-[#d8e7e0] bg-[#f8fcfa] p-2">
+                                              <label className="ui-label mb-1">Estrategia (editable)</label>
                                               <textarea
-                                                className="form-control"
+                                                className="ui-textarea min-h-[110px]"
                                                 rows="4"
                                                 value={strategyTextByDimension[dimension] || ''}
                                                 onChange={(e) => handleStrategyTextChange(dimension, e.target.value)}
                                                 placeholder="Se cargarán estrategias desde decisiones-dimension..."
-                                                style={{ minHeight: '110px' }}
                                               />
                                             </div>
                                           </div>
-                                          <div className="col-12 col-xl-6">
-                                            <div className="border rounded p-2 h-100 bg-light-subtle">
-                                              <label className="form-label fw-bold mb-1">Indicador (editable)</label>
+                                          <div>
+                                            <div className="h-full rounded-xl border border-[#d8e7e0] bg-[#f8fcfa] p-2">
+                                              <label className="ui-label mb-1">Indicador (editable)</label>
                                               <textarea
-                                                className="form-control"
+                                                className="ui-textarea min-h-[110px]"
                                                 rows="4"
                                                 value={indicatorTextByDimension[dimension] || ''}
                                                 onChange={(e) => handleIndicatorTextChange(dimension, e.target.value)}
                                                 placeholder="Se cargarán indicadores desde decisiones-dimension..."
-                                                style={{ minHeight: '110px' }}
                                               />
                                             </div>
                                           </div>
-                                          <div className="col-12 col-md-4">
-                                            <div className="border rounded p-2 h-100 bg-light-subtle">
-                                              <label className="form-label fw-bold mb-1">Plazo</label>
+                                        </div>
+                                        <div className="mt-2 grid gap-2 md:grid-cols-3">
+                                          <div>
+                                            <div className="h-full rounded-xl border border-[#d8e7e0] bg-[#f8fcfa] p-2">
+                                              <label className="ui-label mb-1">Plazo</label>
                                               <textarea
-                                                className="form-control"
+                                                className="ui-textarea min-h-[90px]"
                                                 rows="3"
                                                 value={deadlineTextByDimension[dimension] || ''}
                                                 onChange={(e) => handleDeadlineTextChange(dimension, e.target.value)}
                                                 placeholder="Defina plazo..."
-                                                style={{ minHeight: '90px' }}
                                               />
                                             </div>
                                           </div>
-                                          <div className="col-12 col-md-4">
-                                            <div className="border rounded p-2 h-100 bg-light-subtle">
-                                              <label className="form-label fw-bold mb-1">Responsable</label>
+                                          <div>
+                                            <div className="h-full rounded-xl border border-[#d8e7e0] bg-[#f8fcfa] p-2">
+                                              <label className="ui-label mb-1">Responsable</label>
                                               <textarea
-                                                className="form-control"
+                                                className="ui-textarea min-h-[90px]"
                                                 rows="3"
                                                 value={ownerTextByDimension[dimension] || ''}
                                                 onChange={(e) => handleOwnerTextChange(dimension, e.target.value)}
                                                 placeholder="Defina responsable..."
-                                                style={{ minHeight: '90px' }}
                                               />
                                             </div>
                                           </div>
-                                          <div className="col-12 col-md-4">
-                                            <div className="border rounded p-2 h-100 bg-light-subtle">
-                                              <label className="form-label fw-bold mb-1">Evaluación</label>
+                                          <div>
+                                            <div className="h-full rounded-xl border border-[#d8e7e0] bg-[#f8fcfa] p-2">
+                                              <label className="ui-label mb-1">Evaluación</label>
                                               <textarea
-                                                className="form-control"
+                                                className="ui-textarea min-h-[90px]"
                                                 rows="3"
                                                 value={evaluationTextByDimension[dimension] || ''}
                                                 onChange={(e) => handleEvaluationTextChange(dimension, e.target.value)}
                                                 placeholder="Defina evaluación..."
-                                                style={{ minHeight: '90px' }}
                                               />
                                             </div>
                                           </div>
@@ -770,30 +775,29 @@ function App() {
                               })}
                             </div>
 
-                            <div className="d-flex align-items-center justify-content-between mt-3 mb-1">
-                              <label className="form-label fw-bold mb-0">META</label>
+                            <div className="mb-1 mt-4 flex items-center justify-between">
+                              <label className="ui-label mb-0">META</label>
                               <button
                                 type="button"
-                                className="btn btn-outline-secondary btn-sm"
+                                className="ui-btn-outline h-10 px-3 py-1.5 text-xs"
                                 onClick={() => setSearchMetaText('')}
                                 title="Reiniciar meta"
                                 aria-label="Reiniciar meta"
                                 disabled={!searchMetaText}
-                                style={{ height: '38px', minHeight: '38px', paddingTop: '0.25rem', paddingBottom: '0.25rem', marginLeft: '2px' }}
                               >
                                 Reiniciar
                               </button>
                             </div>
-                            <textarea className="form-control" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
+                            <textarea className="ui-textarea min-h-[90px]" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
 
-                            <div className="mt-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
-                              <div className="small text-danger">{wordDownloadError}</div>
-                              <div className="d-flex gap-2 ms-md-auto">
-                                <button className="btn btn-info text-white" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
+                            <div className="mt-4 flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between">
+                              <div className="text-sm font-medium text-[#b42318]">{wordDownloadError}</div>
+                              <div className="flex gap-2 md:ml-auto">
+                                <button className="ui-btn-info" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
                                   Vista previa ({selectedSearchIds.length})
                                 </button>
                                 <button
-                                  className="btn btn-success"
+                                  className="ui-btn-success"
                                   onClick={generarWordBusqueda}
                                   disabled={selectedSearchIds.length === 0 || isGeneratingWord}
                                 >
@@ -838,7 +842,7 @@ function App() {
           </>
         )}
 
-        <footer className="position-fixed bottom-0 start-0 end-0 border-top bg-white text-center text-muted small py-3 px-3 shadow-sm">
+        <footer className="fixed bottom-0 left-0 right-0 border-t border-[#cfe1d7] bg-white/95 px-3 py-3 text-center text-xs text-[#5b7a6c] shadow-sm backdrop-blur">
           {footerDate}
         </footer>
       </div>
