@@ -9,7 +9,6 @@ import { EMPTY_USER_FORM, formatDateForDisplay, formatDateForInput } from './uti
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 const API_USUARIOS = buildApiUrl('/api/usuarios')
-const API_HABILITACIONES = buildApiUrl('/api/habilitaciones')
 const WORD_EXPORT_PATH = import.meta.env.VITE_WORD_EXPORT_PATH || '/api/usuarios/word'
 const API_WORD_EXPORT = buildApiUrl(WORD_EXPORT_PATH)
 const CACHE_KEY = 'crud-app-cache-v1'
@@ -215,7 +214,6 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
 
 function App() {
   const [usuarios, setUsuarios] = useState(() => readCache('usuarios', []))
-  const [habilitaciones, setHabilitaciones] = useState(() => readCache('habilitaciones', []))
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
@@ -251,40 +249,17 @@ function App() {
     }
   }
 
-  const fetchHabilitaciones = async (forceRefresh = false) => {
-    const cachedHabilitaciones = readCache('habilitaciones', [])
-    if (!forceRefresh && hasValidCache('habilitaciones')) {
-      setHabilitaciones(cachedHabilitaciones)
-      return
-    }
-
-    try {
-      const res = await fetch(API_HABILITACIONES)
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-      const data = await res.json()
-      setHabilitaciones(data)
-      writeCache('habilitaciones', data)
-    } catch (error) {
-      console.error('No se pudieron cargar las habilitaciones:', error)
-      setHabilitaciones(cachedHabilitaciones)
-    }
-  }
-
   const refreshUsuarios = () => fetchUsuarios(true)
-  const refreshHabilitaciones = () => fetchHabilitaciones(true)
 
   useEffect(() => {
     const cachedUsuarios = readCache('usuarios', [])
-    const cachedHabilitaciones = readCache('habilitaciones', [])
 
-    if (cachedUsuarios.length > 0 || cachedHabilitaciones.length > 0) {
+    if (cachedUsuarios.length > 0) {
       setUsuarios(cachedUsuarios)
-      setHabilitaciones(cachedHabilitaciones)
     }
 
-    if (!hasValidCache('usuarios') || !hasValidCache('habilitaciones')) {
+    if (!hasValidCache('usuarios')) {
       fetchUsuarios()
-      fetchHabilitaciones()
     }
   }, [])
 
@@ -860,40 +835,6 @@ function App() {
               onCancel={cancelEditUser}
             />
 
-            <div className="card mt-4">
-              <div className="card-header d-flex justify-content-between align-items-center fw-bold w-100">
-                <span>Tabla de Decisiones — Habilitaciones</span>
-                <button type="button" className="btn btn-sm btn-outline-primary ms-auto" onClick={refreshHabilitaciones}>
-                  Refrescar
-                </button>
-              </div>
-              <div className="card-body p-0">
-                <table className="table table-bordered mb-0">
-                  <thead className="table-dark">
-                    <tr>
-                      <th>ID</th>
-                      <th>Nombre</th>
-                      <th>Edad Mín</th>
-                      <th>Edad Máx</th>
-                      <th>Resultado</th>
-                      <th>Descripción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {habilitaciones.map((h) => (
-                      <tr key={h.id}>
-                        <td>{h.id}</td>
-                        <td>{h.nombre}</td>
-                        <td>{h.edad_min}</td>
-                        <td>{h.edad_max}</td>
-                        <td><span className={`badge ${h.edad_min >= 18 ? 'bg-primary' : 'bg-secondary'}`}>{h.resultado}</span></td>
-                        <td>{h.descripcion}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </>
         )}
 
