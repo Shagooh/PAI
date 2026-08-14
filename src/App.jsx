@@ -247,6 +247,8 @@ function App() {
   const [ownerTextByDimension, setOwnerTextByDimension] = useState({})
   const [evaluationTextByDimension, setEvaluationTextByDimension] = useState({})
   const [isGeneratingWord, setIsGeneratingWord] = useState(false)
+  const [isSavingFicha, setIsSavingFicha] = useState(false)
+  const [showWordModal, setShowWordModal] = useState(false)
   const [wordDownloadError, setWordDownloadError] = useState('')
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState(EMPTY_USER_FORM)
@@ -550,6 +552,7 @@ function App() {
 
     const decisiones = buildDecisionesFromForm()
 
+    setIsSavingFicha(true)
     try {
       const res = await fetch(buildApiUrl(`/api/usuarios/${encodeURIComponent(rut)}/ficha`), {
         method: 'PUT',
@@ -573,17 +576,40 @@ function App() {
       console.error('No se pudo guardar la ficha:', error)
       setFichaSaveStatus({ type: 'error', text: error?.message || 'No se pudo guardar la ficha' })
       return false
+    } finally {
+      setIsSavingFicha(false)
     }
   }
 
-  const generarWordBusqueda = async () => {
+  const openWordModal = () => {
+    if (selectedSearchIds.length === 0) return
+    setWordDownloadError('')
+    setFichaSaveStatus(null)
+    setShowWordModal(true)
+  }
+
+  const closeWordModal = () => {
+    if (!isGeneratingWord) setShowWordModal(false)
+  }
+
+  useEffect(() => {
+    if (!showWordModal) return
+    const handleKey = (event) => {
+      if (event.key === 'Escape') closeWordModal()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [showWordModal, isGeneratingWord])
+
+  const generarWordBusqueda = async (saveFichaBefore = true) => {
     if (selectedSearchIds.length === 0) return
 
+    setShowWordModal(false)
     setWordDownloadError('')
     setFichaSaveStatus(null)
     setIsGeneratingWord(true)
 
-    if (activeUserRut) {
+    if (saveFichaBefore && activeUserRut) {
       await guardarFicha(activeUserRut)
     }
 
@@ -970,14 +996,14 @@ function App() {
                                   type="button"
                                   className="ui-btn-outline"
                                   onClick={() => guardarFicha()}
-                                  disabled={!activeUserRut || isGeneratingWord}
+                                  disabled={!activeUserRut || isGeneratingWord || isSavingFicha}
                                 >
-                                  Guardar ficha
+                                  {isSavingFicha ? 'Guardando...' : 'Guardar ficha'}
                                 </button>
                                 <button
                                   className="ui-btn-success"
-                                  onClick={generarWordBusqueda}
-                                  disabled={selectedSearchIds.length === 0 || isGeneratingWord}
+                                  onClick={openWordModal}
+                                  disabled={selectedSearchIds.length === 0 || isGeneratingWord || isSavingFicha}
                                 >
                                   {isGeneratingWord ? 'Generando...' : 'Generar Word'}
                                 </button>
@@ -1036,6 +1062,57 @@ function App() {
             <path d="m5 12 7-7 7 7" />
           </svg>
         </button>
+
+        {showWordModal &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[2100] flex items-center justify-center bg-[#0b2a1e]/50 p-4 backdrop-blur-sm"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) closeWordModal()
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="word-modal-title"
+                className="w-full max-w-md rounded-2xl border border-[#cee1d7] bg-white p-6 shadow-2xl"
+              >
+                <h2 id="word-modal-title" className="mb-2 text-lg font-bold text-[#153629]">
+                  Generar Word
+                </h2>
+                <p className="mb-5 text-sm text-[#557264]">
+                  ¿Desea guardar la ficha en la base de datos antes de generar el documento?
+                </p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className="ui-btn-outline"
+                    onClick={closeWordModal}
+                    disabled={isGeneratingWord}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="ui-btn-outline"
+                    onClick={() => generarWordBusqueda(false)}
+                    disabled={isGeneratingWord}
+                  >
+                    Solo descargar Word
+                  </button>
+                  <button
+                    type="button"
+                    className="ui-btn-success"
+                    onClick={() => generarWordBusqueda(true)}
+                    disabled={isGeneratingWord}
+                  >
+                    Guardar y generar
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
       </div>
     </div>
   )
