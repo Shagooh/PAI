@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
@@ -131,25 +131,52 @@ const writeCache = (key, data) => {
 
 function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
   const [open, setOpen] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0, width: 0 })
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0, width: 0, maxHeight: 320 })
   const buttonRef = useRef(null)
   const menuRef = useRef(null)
 
   const computeMenuPosition = () => {
     const rect = buttonRef.current?.getBoundingClientRect()
     if (!rect) return
-    const next = { left: rect.left, top: rect.bottom + 6, width: rect.width }
+
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const margin = 8
+
+    const menuHeight = menuRef.current?.offsetHeight || 0
+    const width = Math.min(rect.width, viewportWidth - margin * 2)
+
+    let left = rect.left
+    if (left + width > viewportWidth - margin) left = viewportWidth - width - margin
+    left = Math.max(margin, left)
+
+    const spaceBelow = Math.max(margin, viewportHeight - rect.bottom - 6 - margin)
+    const spaceAbove = Math.max(margin, rect.top - 6 - margin)
+    const maxHeight = Math.min(320, Math.max(spaceBelow, spaceAbove))
+
+    const belowTop = rect.bottom + 6
+    const canFitBelow = menuHeight > 0 && belowTop + menuHeight <= viewportHeight - margin
+    const canFitAbove = menuHeight > 0 && rect.top - 6 - menuHeight >= margin
+    const top = !canFitBelow && canFitAbove ? rect.top - 6 - menuHeight : belowTop
+
+    const next = { left, top, width, maxHeight }
     setMenuPosition((prev) =>
-      prev.left === next.left && prev.top === next.top && prev.width === next.width
+      prev.left === next.left &&
+        prev.top === next.top &&
+        prev.width === next.width &&
+        prev.maxHeight === next.maxHeight
         ? prev
         : next
     )
   }
 
+  useLayoutEffect(() => {
+    if (!open) return
+    computeMenuPosition()
+  }, [open, menuPosition.width])
+
   useEffect(() => {
     if (!open) return
-
-    computeMenuPosition()
 
     const handleClickOutside = (event) => {
       if (
@@ -201,7 +228,7 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
             style={{
               position: 'fixed',
               zIndex: 2000,
-              maxHeight: '320px',
+              maxHeight: `${menuPosition.maxHeight}px`,
               overflowY: 'auto',
               minWidth: menuPosition.width,
               maxWidth: menuPosition.width,
@@ -214,7 +241,7 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
               <button
                 key={option}
                 type="button"
-                className={`mb-1 block w-full rounded-lg px-3 py-2 text-left text-sm last:mb-0 ${value === option
+                className={`mb-1 block w-full rounded-lg px-3 py-2.5 text-left text-sm last:mb-0 ${value === option
                   ? 'bg-[#0f9d75] text-white'
                   : 'bg-white text-[#1f4436] hover:bg-[#edf7f2]'
                   }`}
@@ -762,7 +789,7 @@ function App() {
   const activeUser = usuarios.find((u) => u.rut === activeUserRut) || null
 
   return (
-    <div className="relative flex min-h-screen flex-col">
+    <div className="relative flex min-h-dvh flex-col">
       <div className="page-shell flex-1">
         <div className="reveal-up mb-8" style={{ '--reveal-delay': '0ms' }}>
           <h1 className="mb-2 text-3xl font-bold text-[#153629] sm:text-4xl">Gestor de Usuarios</h1>
@@ -795,51 +822,114 @@ function App() {
                       <p className="text-sm text-[#617f71]">{usuarios.length === 0 ? 'No hay usuarios registrados.' : 'No se encontraron usuarios.'}</p>
                     ) : (
                       <>
-                        <div className="ui-table-wrap">
-                          <table className="ui-table">
-                            <thead>
-                              <tr>
-                                <th style={{ width: '40px' }}></th>
-                                <th style={{ width: '160px' }}>RUT</th>
-                                <th style={{ width: '200px' }}>Nombre</th>
-                                <th style={{ width: '200px' }}>Apellido</th>
-                                <th style={{ width: '80px' }}>Edad</th>
-                                <th style={{ width: '170px' }}>Fecha nacimiento</th>
-                                <th style={{ width: '180px' }}>Equipo tratante</th>
-                                <th style={{ width: '180px' }}>Estado motivacional</th>
-                                <th style={{ width: '160px' }}>Programa</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {searchResults.map((u) => (
-                                <tr key={u.rut} className={activeUserRut === u.rut ? 'bg-[#edf7f2]' : ''}>
-                                  <td>
-                                    <input type="checkbox" className="ui-check" checked={selectedSearchIds.includes(u.rut)} onChange={() => toggleSearch(u.rut)} />
-                                  </td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>
-                                    <span className="inline-flex items-center gap-1.5">
-                                      {u.rut}
-                                      {hasFicha(u) && (
-                                        <span
-                                          className="rounded-full bg-[#0f9d75]/10 px-2 py-0.5 text-[10px] font-semibold text-[#0f9d75]"
-                                          title="Tiene ficha guardada"
-                                        >
-                                          ficha
-                                        </span>
-                                      )}
-                                    </span>
-                                  </td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{formatDateForDisplay(u.fecha_nacimiento) || '-'}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.equipo_tratante || '-'}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.estado_motivacional || '-'}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.programa || '-'}</td>
+                        <div className="hidden md:block">
+                          <div className="ui-table-wrap">
+                            <table className="ui-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '40px' }}></th>
+                                  <th style={{ width: '160px' }}>RUT</th>
+                                  <th style={{ width: '200px' }}>Nombre</th>
+                                  <th style={{ width: '200px' }}>Apellido</th>
+                                  <th style={{ width: '80px' }}>Edad</th>
+                                  <th style={{ width: '170px' }}>Fecha nacimiento</th>
+                                  <th style={{ width: '180px' }}>Equipo tratante</th>
+                                  <th style={{ width: '180px' }}>Estado motivacional</th>
+                                  <th style={{ width: '160px' }}>Programa</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {searchResults.map((u) => (
+                                  <tr key={u.rut} className={activeUserRut === u.rut ? 'bg-[#edf7f2]' : ''}>
+                                    <td>
+                                      <input type="checkbox" className="ui-check" checked={selectedSearchIds.includes(u.rut)} onChange={() => toggleSearch(u.rut)} />
+                                    </td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>
+                                      <span className="inline-flex items-center gap-1.5">
+                                        {u.rut}
+                                        {hasFicha(u) && (
+                                          <span
+                                            className="rounded-full bg-[#0f9d75]/10 px-2 py-0.5 text-[10px] font-semibold text-[#0f9d75]"
+                                            title="Tiene ficha guardada"
+                                          >
+                                            ficha
+                                          </span>
+                                        )}
+                                      </span>
+                                    </td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{formatDateForDisplay(u.fecha_nacimiento) || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.equipo_tratante || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.estado_motivacional || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.programa || '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 md:hidden">
+                          {searchResults.map((u) => (
+                            <button
+                              type="button"
+                              key={u.rut}
+                              className={`w-full rounded-xl border p-3 text-left transition ${
+                                activeUserRut === u.rut
+                                  ? 'border-[#0f9d75] bg-[#edf7f2]'
+                                  : 'border-[#d0e1d7] bg-white'
+                              }`}
+                              onClick={() => toggleSearch(u.rut)}
+                            >
+                              <span className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="ui-check pointer-events-none"
+                                  checked={selectedSearchIds.includes(u.rut)}
+                                  readOnly
+                                  tabIndex={-1}
+                                  aria-hidden="true"
+                                />
+                                <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#1d4436]">{u.rut}</span>
+                                {hasFicha(u) && (
+                                  <span
+                                    className="shrink-0 rounded-full bg-[#0f9d75]/10 px-2 py-0.5 text-[10px] font-semibold text-[#0f9d75]"
+                                    title="Tiene ficha guardada"
+                                  >
+                                    ficha
+                                  </span>
+                                )}
+                              </span>
+                              <span className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                                <span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Nombre</span>
+                                  <span className="block break-words text-[#1d4436]">{`${u.nombre} ${u.apellido}`.trim() || '-'}</span>
+                                </span>
+                                <span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Edad</span>
+                                  <span className="block break-words text-[#1d4436]">{u.edad || '-'}</span>
+                                </span>
+                                <span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Fecha nacimiento</span>
+                                  <span className="block break-words text-[#1d4436]">{formatDateForDisplay(u.fecha_nacimiento) || '-'}</span>
+                                </span>
+                                <span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Equipo tratante</span>
+                                  <span className="block break-words text-[#1d4436]">{u.equipo_tratante || '-'}</span>
+                                </span>
+                                <span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Estado motivacional</span>
+                                  <span className="block break-words text-[#1d4436]">{u.estado_motivacional || '-'}</span>
+                                </span>
+                                <span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Programa</span>
+                                  <span className="block break-words text-[#1d4436]">{u.programa || '-'}</span>
+                                </span>
+                              </span>
+                            </button>
+                          ))}
                         </div>
                         {selectedSearchIds.length > 0 && (
                           <div className="mt-4 rounded-2xl border border-[#cee1d7] bg-[#f5faf8] p-3 sm:p-4">
@@ -857,11 +947,11 @@ function App() {
 
                                 return (
                                   <div className="reveal-up rounded-xl border border-[#d6e7de] bg-white p-3" key={dimension} style={{ '--reveal-delay': `${Math.min(index * 35, 280)}ms` }}>
-                                    <div className="grid items-start gap-3 lg:grid-cols-12">
-                                      <div className="flex justify-center lg:col-span-3">
+                                    <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-12">
+                                      <div className="flex min-w-0 justify-center lg:col-span-3">
                                         <div className="text-center text-xs font-bold uppercase tracking-[0.08em] text-[#3b6654]">{dimension}</div>
                                       </div>
-                                      <div className="lg:col-span-9">
+                                      <div className="min-w-0 lg:col-span-9">
                                         <div className="flex items-end gap-2">
                                           <div className="min-w-0 flex-1">
                                             <Dropdown
@@ -876,7 +966,7 @@ function App() {
                                           <div className="shrink-0">
                                             <button
                                               type="button"
-                                              className="ui-btn-outline h-10 px-3 py-1.5 text-xs"
+                                              className="ui-btn-outline h-11 px-3 py-1.5 text-xs"
                                               onClick={() => resetObjective(dimension)}
                                               title="Reiniciar selección"
                                             >
@@ -966,7 +1056,7 @@ function App() {
                               <label className="ui-label mb-0">META</label>
                               <button
                                 type="button"
-                                className="ui-btn-outline h-10 px-3 py-1.5 text-xs"
+                                className="ui-btn-outline h-11 px-3 py-1.5 text-xs"
                                 onClick={() => setSearchMetaText('')}
                                 title="Reiniciar meta"
                                 aria-label="Reiniciar meta"
@@ -1046,7 +1136,7 @@ function App() {
           </>
         )}
 
-        <footer className="fixed bottom-0 left-0 right-0 border-t border-[#cfe1d7] bg-white/95 px-3 py-3 text-center text-xs text-[#5b7a6c] shadow-sm backdrop-blur">
+        <footer className="border-t border-[#cfe1d7] bg-white/95 px-3 py-3 text-center text-xs text-[#5b7a6c] shadow-sm backdrop-blur md:fixed md:bottom-0 md:left-0 md:right-0 md:pb-[max(0.75rem,var(--safe-bottom))]">
           {footerDate}
         </footer>
 
@@ -1055,7 +1145,7 @@ function App() {
           onClick={scrollToTop}
           aria-label="Volver al inicio"
           title="Volver al inicio"
-          className={`fixed right-4 bottom-16 z-[1500] flex h-11 w-11 items-center justify-center rounded-full bg-[#0f9d75] text-white shadow-lg transition-opacity duration-200 hover:bg-[#0c8260] ${showBackToTop ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          className={`fixed right-4 bottom-[calc(1rem+var(--safe-bottom))] z-[1500] flex h-11 w-11 items-center justify-center rounded-full bg-[#0f9d75] text-white shadow-lg transition-opacity duration-200 hover:bg-[#0c8260] md:bottom-16 ${showBackToTop ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 19V5" />
