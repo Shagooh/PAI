@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
 import EditarUsuarioCard from './components/EditarUsuarioCard'
@@ -130,11 +131,25 @@ const writeCache = (key, data) => {
 
 function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
   const [open, setOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0, width: 0 })
   const buttonRef = useRef(null)
   const menuRef = useRef(null)
 
+  const computeMenuPosition = () => {
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const next = { left: rect.left, top: rect.bottom + 6, width: rect.width }
+    setMenuPosition((prev) =>
+      prev.left === next.left && prev.top === next.top && prev.width === next.width
+        ? prev
+        : next
+    )
+  }
+
   useEffect(() => {
     if (!open) return
+
+    computeMenuPosition()
 
     const handleClickOutside = (event) => {
       if (
@@ -155,10 +170,14 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
 
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleEscape)
+    window.addEventListener('scroll', computeMenuPosition, true)
+    window.addEventListener('resize', computeMenuPosition)
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleEscape)
+      window.removeEventListener('scroll', computeMenuPosition, true)
+      window.removeEventListener('resize', computeMenuPosition)
     }
   }, [open])
 
@@ -174,43 +193,43 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
       >
         {value || placeholder}
       </button>
-      {open && !disabled && (
-        <div
-          ref={menuRef}
-          className="panel p-2"
-          style={{
-            position: 'fixed',
-            zIndex: 2000,
-            maxHeight: '320px',
-            overflowY: 'auto',
-            minWidth: buttonRef.current ? buttonRef.current.offsetWidth : 360,
-            maxWidth: buttonRef.current ? buttonRef.current.offsetWidth : 360,
-            left: buttonRef.current ? buttonRef.current.getBoundingClientRect().left : 0,
-            top: buttonRef.current
-              ? buttonRef.current.getBoundingClientRect().bottom + 6
-              : 0,
-            width: buttonRef.current ? buttonRef.current.offsetWidth : 360,
-          }}
-        >
-          {options.map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={`mb-1 block w-full rounded-lg px-3 py-2 text-left text-sm last:mb-0 ${value === option
-                ? 'bg-[#0f9d75] text-white'
-                : 'bg-white text-[#1f4436] hover:bg-[#edf7f2]'
-                }`}
-              style={{ overflowWrap: 'anywhere' }}
-              onClick={() => {
-                onChange(option)
-                setOpen(false)
-              }}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
+      {open && !disabled && menuPosition.width > 0 &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="panel p-2"
+            style={{
+              position: 'fixed',
+              zIndex: 2000,
+              maxHeight: '320px',
+              overflowY: 'auto',
+              minWidth: menuPosition.width,
+              maxWidth: menuPosition.width,
+              left: menuPosition.left,
+              top: menuPosition.top,
+              width: menuPosition.width,
+            }}
+          >
+            {options.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`mb-1 block w-full rounded-lg px-3 py-2 text-left text-sm last:mb-0 ${value === option
+                  ? 'bg-[#0f9d75] text-white'
+                  : 'bg-white text-[#1f4436] hover:bg-[#edf7f2]'
+                  }`}
+                style={{ overflowWrap: 'anywhere' }}
+                onClick={() => {
+                  onChange(option)
+                  setOpen(false)
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
