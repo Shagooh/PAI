@@ -251,6 +251,81 @@ function App() {
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState(EMPTY_USER_FORM)
   const [view, setView] = useState('buscar')
+  const [showBackToTop, setShowBackToTop] = useState(false)
+  const [activeUserRut, setActiveUserRut] = useState(null)
+  const [fichaSaveStatus, setFichaSaveStatus] = useState(null)
+  const lastAppliedQueryRef = useRef('')
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 400)
+    }
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const clearFichaFields = () => {
+    setSelectedObjectivesByDimension({})
+    setStrategyTextByDimension({})
+    setIndicatorTextByDimension({})
+    setDeadlineTextByDimension({})
+    setOwnerTextByDimension({})
+    setEvaluationTextByDimension({})
+    setSearchMetaText('')
+    setFichaSaveStatus(null)
+  }
+
+  const hasFicha = (user) =>
+    Boolean(user?.meta) || (Array.isArray(user?.decisiones) && user.decisiones.length > 0)
+
+  const loadUserFicha = (user = {}) => {
+    const decisions = Array.isArray(user.decisiones) ? user.decisiones : []
+
+    const objectives = {}
+    const strategies = {}
+    const indicators = {}
+    const deadlines = {}
+    const owners = {}
+    const evaluations = {}
+
+    decisions.forEach((d) => {
+      const dim = d?.dimension || ''
+      if (!dim) return
+      objectives[dim] = d?.objetivo || ''
+      strategies[dim] = d?.estrategia || ''
+      indicators[dim] = d?.indicador || ''
+      deadlines[dim] = d?.plazo || ''
+      owners[dim] = d?.responsable || ''
+      evaluations[dim] = d?.evaluacion || ''
+    })
+
+    setSelectedObjectivesByDimension(objectives)
+    setStrategyTextByDimension(strategies)
+    setIndicatorTextByDimension(indicators)
+    setDeadlineTextByDimension(deadlines)
+    setOwnerTextByDimension(owners)
+    setEvaluationTextByDimension(evaluations)
+    setSearchMetaText(user.meta || '')
+    setFichaSaveStatus(null)
+  }
+
+  const buildDecisionesFromForm = () => {
+    const selections = Object.entries(selectedObjectivesByDimension).filter(([, objective]) => Boolean(objective))
+    return selections.map(([dimension, objetivo]) => ({
+      dimension,
+      objetivo,
+      estrategia: strategyTextByDimension[dimension] || '',
+      indicador: indicatorTextByDimension[dimension] || '',
+      plazo: deadlineTextByDimension[dimension] || '',
+      responsable: ownerTextByDimension[dimension] || '',
+      evaluacion: evaluationTextByDimension[dimension] || '',
+    }))
+  }
 
   const fetchUsuarios = async (forceRefresh = false) => {
     const cachedUsuarios = readCache('usuarios', [])
@@ -287,10 +362,16 @@ function App() {
 
   const applySearchFilter = (query) => {
     const normalizedQuery = query.trim().toLowerCase()
+    const queryChanged = normalizedQuery !== lastAppliedQueryRef.current
+    lastAppliedQueryRef.current = normalizedQuery
 
     if (!normalizedQuery) {
       setSearchResults(usuarios)
-      setSelectedSearchIds([])
+      if (queryChanged) {
+        setSelectedSearchIds([])
+        setActiveUserRut(null)
+        clearFichaFields()
+      }
       return
     }
 
@@ -303,7 +384,11 @@ function App() {
     })
 
     setSearchResults(filtered)
-    setSelectedSearchIds([])
+    if (queryChanged) {
+      setSelectedSearchIds([])
+      setActiveUserRut(null)
+      clearFichaFields()
+    }
   }
 
   const buscarUsuario = () => {
@@ -319,9 +404,30 @@ function App() {
   }
 
   const toggleSearch = (id) => {
-    setSelectedSearchIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
+    const isSelected = selectedSearchIds.includes(id)
+    const next = isSelected
+      ? selectedSearchIds.filter((x) => x !== id)
+      : [...selectedSearchIds, id]
+    setSelectedSearchIds(next)
+
+    if (isSelected) {
+      if (activeUserRut === id) {
+        const remaining = next.filter((x) => x !== id)
+        if (remaining.length > 0) {
+          const lastRut = remaining[remaining.length - 1]
+          const user = usuarios.find((u) => u.rut === lastRut)
+          setActiveUserRut(lastRut)
+          loadUserFicha(user || {})
+        } else {
+          setActiveUserRut(null)
+          clearFichaFields()
+        }
+      }
+    } else {
+      const user = usuarios.find((u) => u.rut === id)
+      setActiveUserRut(id)
+      loadUserFicha(user || {})
+    }
   }
 
   const handleEditUser = (user) => {
@@ -337,7 +443,8 @@ function App() {
       programa: user.programa || ''
     })
     setSelectedSearchIds([user.rut])
-    setSearchMetaText(user.meta || '')
+    setActiveUserRut(user.rut)
+    loadUserFicha(user)
   }
 
   const handleEditFormChange = (e) => {
@@ -350,13 +457,23 @@ function App() {
     setEditingUser(null)
     setEditForm(EMPTY_USER_FORM)
     setSelectedSearchIds([])
-    setSearchMetaText('')
+    setActiveUserRut(null)
+    clearFichaFields()
   }
 
   const toggleAllSearch = () => {
     if (!searchResults) return
-    if (selectedSearchIds.length === searchResults.length) setSelectedSearchIds([])
-    else setSelectedSearchIds(searchResults.map((u) => u.rut))
+    if (selectedSearchIds.length === searchResults.length) {
+      setSelectedSearchIds([])
+      setActiveUserRut(null)
+      clearFichaFields()
+    } else {
+      const ids = searchResults.map((u) => u.rut)
+      const last = searchResults[searchResults.length - 1]
+      setSelectedSearchIds(ids)
+      setActiveUserRut(last?.rut || null)
+      loadUserFicha(last || {})
+    }
   }
 
   const dimensiones = dimensionOptions
@@ -454,41 +571,76 @@ function App() {
     window.open(url, '_blank')
   }
 
+  const guardarFicha = async (rut = activeUserRut) => {
+    if (!rut) return false
+
+    const decisiones = buildDecisionesFromForm()
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/usuarios/${encodeURIComponent(rut)}/ficha`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meta: searchMetaText, decisiones }),
+      })
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '')
+        throw new Error(errorText || `Error ${res.status}`)
+      }
+
+      const updatedUsuarios = usuarios.map((u) =>
+        u.rut === rut ? { ...u, meta: searchMetaText, decisiones } : u
+      )
+      setUsuarios(updatedUsuarios)
+      writeCache('usuarios', updatedUsuarios)
+
+      setFichaSaveStatus({ type: 'success', text: 'Ficha guardada' })
+      return true
+    } catch (error) {
+      console.error('No se pudo guardar la ficha:', error)
+      setFichaSaveStatus({ type: 'error', text: error?.message || 'No se pudo guardar la ficha' })
+      return false
+    }
+  }
+
   const generarWordBusqueda = async () => {
     if (selectedSearchIds.length === 0) return
 
     setWordDownloadError('')
+    setFichaSaveStatus(null)
     setIsGeneratingWord(true)
 
-    const selections = Object.entries(selectedObjectivesByDimension).filter(([, objective]) => Boolean(objective))
-    const decisiones = selections.map(([dimension, objetivo]) => ({
-      dimension,
-      objetivo,
-      estrategia: strategyTextByDimension[dimension] || '',
-      indicador: indicatorTextByDimension[dimension] || '',
-      plazo: deadlineTextByDimension[dimension] || '',
-      responsable: ownerTextByDimension[dimension] || '',
-      evaluacion: evaluationTextByDimension[dimension] || '',
-    }))
+    if (activeUserRut) {
+      await guardarFicha(activeUserRut)
+    }
+
+    const activeDecisiones = buildDecisionesFromForm()
+    const activeMeta = searchMetaText
 
     const usuariosSeleccionados = usuarios
       .filter((usuario) => selectedSearchIds.includes(usuario.rut))
-      .map((usuario) => ({
-        rut: usuario.rut,
-        nombre: usuario.nombre,
-        apellido: usuario.apellido,
-        edad: usuario.edad,
-        fecha_nacimiento: usuario.fecha_nacimiento || '',
-        equipo_tratante: usuario.equipo_tratante || '',
-        estado_motivacional: usuario.estado_motivacional || '',
-        programa: usuario.programa || '',
-      }))
+      .map((usuario) => {
+        const isActive = usuario.rut === activeUserRut
+        return {
+          rut: usuario.rut,
+          nombre: usuario.nombre,
+          apellido: usuario.apellido,
+          edad: usuario.edad,
+          fecha_nacimiento: usuario.fecha_nacimiento || '',
+          equipo_tratante: usuario.equipo_tratante || '',
+          estado_motivacional: usuario.estado_motivacional || '',
+          programa: usuario.programa || '',
+          meta: isActive ? activeMeta : (usuario.meta || ''),
+          decisiones: isActive
+            ? activeDecisiones
+            : (Array.isArray(usuario.decisiones) ? usuario.decisiones : []),
+        }
+      })
 
     const payload = {
       ids: selectedSearchIds,
-      meta: searchMetaText,
+      meta: activeMeta,
       usuarios: usuariosSeleccionados,
-      decisiones,
+      decisiones: activeDecisiones,
     }
 
     try {
@@ -607,6 +759,8 @@ function App() {
     year: 'numeric'
   }).format(new Date())
 
+  const activeUser = usuarios.find((u) => u.rut === activeUserRut) || null
+
   return (
     <div className="relative flex min-h-screen flex-col">
       <div className="page-shell flex-1">
@@ -660,11 +814,23 @@ function App() {
                             </thead>
                             <tbody>
                               {searchResults.map((u) => (
-                                <tr key={u.rut}>
+                                <tr key={u.rut} className={activeUserRut === u.rut ? 'bg-[#edf7f2]' : ''}>
                                   <td>
                                     <input type="checkbox" className="ui-check" checked={selectedSearchIds.includes(u.rut)} onChange={() => toggleSearch(u.rut)} />
                                   </td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{u.rut}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>
+                                    <span className="inline-flex items-center gap-1.5">
+                                      {u.rut}
+                                      {hasFicha(u) && (
+                                        <span
+                                          className="rounded-full bg-[#0f9d75]/10 px-2 py-0.5 text-[10px] font-semibold text-[#0f9d75]"
+                                          title="Tiene ficha guardada"
+                                        >
+                                          ficha
+                                        </span>
+                                      )}
+                                    </span>
+                                  </td>
                                   <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
                                   <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
                                   <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
@@ -679,6 +845,13 @@ function App() {
                         </div>
                         {selectedSearchIds.length > 0 && (
                           <div className="mt-4 rounded-2xl border border-[#cee1d7] bg-[#f5faf8] p-3 sm:p-4">
+                            {activeUser && (
+                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#d6e7de] bg-white px-3 py-2">
+                                <div className="text-sm font-bold text-[#2f5d4b]">
+                                  Ficha de: {`${activeUser.nombre} ${activeUser.apellido}`.trim()} ({activeUser.rut})
+                                </div>
+                              </div>
+                            )}
                             <div className="flex flex-col gap-2">
                               {dimensiones.map((dimension, index) => {
                                 const selectedValue = selectedObjectivesByDimension[dimension] || ''
@@ -807,10 +980,27 @@ function App() {
                             <textarea className="ui-textarea min-h-[90px]" rows="2" value={searchMetaText} onChange={(e) => setSearchMetaText(e.target.value)} placeholder="Ingrese la meta del usuario..."></textarea>
 
                             <div className="mt-4 flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between">
-                              <div className="text-sm font-medium text-[#b42318]">{wordDownloadError}</div>
+                              <div className="flex flex-col gap-1">
+                                {wordDownloadError && <div className="text-sm font-medium text-[#b42318]">{wordDownloadError}</div>}
+                                {fichaSaveStatus && (
+                                  <div className={`text-sm font-medium ${fichaSaveStatus.type === 'success' ? 'text-[#0f9d75]' : 'text-[#b42318]'}`}>
+                                    {fichaSaveStatus.text}
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex gap-2 md:ml-auto">
+                                {/* Vista previa deshabilitada temporalmente. Para retomarla, quitar este bloque de comentario:
                                 <button className="ui-btn-info" onClick={abrirPreviewBusqueda} disabled={selectedSearchIds.length === 0}>
                                   Vista previa ({selectedSearchIds.length})
+                                </button>
+                                */}
+                                <button
+                                  type="button"
+                                  className="ui-btn-outline"
+                                  onClick={() => guardarFicha()}
+                                  disabled={!activeUserRut || isGeneratingWord}
+                                >
+                                  Guardar ficha
                                 </button>
                                 <button
                                   className="ui-btn-success"
@@ -861,6 +1051,19 @@ function App() {
         <footer className="fixed bottom-0 left-0 right-0 border-t border-[#cfe1d7] bg-white/95 px-3 py-3 text-center text-xs text-[#5b7a6c] shadow-sm backdrop-blur">
           {footerDate}
         </footer>
+
+        <button
+          type="button"
+          onClick={scrollToTop}
+          aria-label="Volver al inicio"
+          title="Volver al inicio"
+          className={`fixed right-4 bottom-16 z-[1500] flex h-11 w-11 items-center justify-center rounded-full bg-[#0f9d75] text-white shadow-lg transition-opacity duration-200 hover:bg-[#0c8260] ${showBackToTop ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 19V5" />
+            <path d="m5 12 7-7 7 7" />
+          </svg>
+        </button>
       </div>
     </div>
   )
