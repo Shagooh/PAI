@@ -405,29 +405,18 @@ function App() {
 
   const toggleSearch = (id) => {
     const isSelected = selectedSearchIds.includes(id)
-    const next = isSelected
-      ? selectedSearchIds.filter((x) => x !== id)
-      : [...selectedSearchIds, id]
-    setSelectedSearchIds(next)
 
     if (isSelected) {
-      if (activeUserRut === id) {
-        const remaining = next.filter((x) => x !== id)
-        if (remaining.length > 0) {
-          const lastRut = remaining[remaining.length - 1]
-          const user = usuarios.find((u) => u.rut === lastRut)
-          setActiveUserRut(lastRut)
-          loadUserFicha(user || {})
-        } else {
-          setActiveUserRut(null)
-          clearFichaFields()
-        }
-      }
-    } else {
-      const user = usuarios.find((u) => u.rut === id)
-      setActiveUserRut(id)
-      loadUserFicha(user || {})
+      setSelectedSearchIds([])
+      setActiveUserRut(null)
+      clearFichaFields()
+      return
     }
+
+    const user = usuarios.find((u) => u.rut === id)
+    setSelectedSearchIds([id])
+    setActiveUserRut(id)
+    loadUserFicha(user || {})
   }
 
   const handleEditUser = (user) => {
@@ -459,21 +448,6 @@ function App() {
     setSelectedSearchIds([])
     setActiveUserRut(null)
     clearFichaFields()
-  }
-
-  const toggleAllSearch = () => {
-    if (!searchResults) return
-    if (selectedSearchIds.length === searchResults.length) {
-      setSelectedSearchIds([])
-      setActiveUserRut(null)
-      clearFichaFields()
-    } else {
-      const ids = searchResults.map((u) => u.rut)
-      const last = searchResults[searchResults.length - 1]
-      setSelectedSearchIds(ids)
-      setActiveUserRut(last?.rut || null)
-      loadUserFicha(last || {})
-    }
   }
 
   const dimensiones = dimensionOptions
@@ -799,9 +773,7 @@ function App() {
                           <table className="ui-table">
                             <thead>
                               <tr>
-                                <th style={{ width: '40px' }}>
-                                  <input type="checkbox" className="ui-check" onChange={toggleAllSearch} checked={selectedSearchIds.length === searchResults.length && searchResults.length > 0} />
-                                </th>
+                                <th style={{ width: '40px' }}></th>
                                 <th style={{ width: '160px' }}>RUT</th>
                                 <th style={{ width: '200px' }}>Nombre</th>
                                 <th style={{ width: '200px' }}>Apellido</th>
