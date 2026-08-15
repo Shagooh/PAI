@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
 import EditarUsuarioCard from './components/EditarUsuarioCard'
+import NewUsersList from './components/NewUsersList'
 import dimensionesObjetivosData from './assets/lista-dimensiones-objetivos.json'
 import decisionesDimensionData from './assets/decisiones-dimension.json'
 import { EMPTY_USER_FORM, formatDateForDisplay, formatDateForInput } from './utils/userUtils'
@@ -10,6 +11,7 @@ import { EMPTY_USER_FORM, formatDateForDisplay, formatDateForInput } from './uti
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 const API_USUARIOS = buildApiUrl('/api/usuarios')
+const API_NEW_USERS = buildApiUrl('/api/new-users')
 const WORD_EXPORT_PATH = import.meta.env.VITE_WORD_EXPORT_PATH || '/api/usuarios/word'
 const API_WORD_EXPORT = buildApiUrl(WORD_EXPORT_PATH)
 const CACHE_KEY = 'crud-app-cache-v1'
@@ -263,6 +265,7 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
 
 function App() {
   const [usuarios, setUsuarios] = useState(() => readCache('usuarios', []))
+  const [newUsers, setNewUsers] = useState(() => readCache('new-users', []))
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
@@ -377,15 +380,36 @@ function App() {
 
   const refreshUsuarios = () => fetchUsuarios(true)
 
-  useEffect(() => {
-    const cachedUsuarios = readCache('usuarios', [])
-
-    if (cachedUsuarios.length > 0) {
-      setUsuarios(cachedUsuarios)
+  const fetchNewUsers = async (forceRefresh = false) => {
+    const cachedNewUsers = readCache('new-users', [])
+    if (!forceRefresh && hasValidCache('new-users')) {
+      setNewUsers(cachedNewUsers)
+      return
     }
 
-    if (!hasValidCache('usuarios')) {
-      fetchUsuarios()
+    try {
+      const res = await fetch(API_NEW_USERS)
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      setNewUsers(data)
+      writeCache('new-users', data)
+    } catch (error) {
+      console.error('No se pudieron cargar los NewUsers:', error)
+      setNewUsers(cachedNewUsers)
+    }
+  }
+
+  const refreshNewUsers = () => fetchNewUsers(true)
+
+  useEffect(() => {
+    const cachedNewUsers = readCache('new-users', [])
+
+    if (cachedNewUsers.length > 0) {
+      setNewUsers(cachedNewUsers)
+    }
+
+    if (!hasValidCache('new-users')) {
+      fetchNewUsers()
     }
   }, [])
 
@@ -803,6 +827,9 @@ function App() {
           <button className={`ui-btn-tab ${view === 'tablas' ? 'ui-btn-tab-active' : ''}`} onClick={() => setView('tablas')}>
             Usuarios y Decisiones
           </button>
+          <button className={`ui-btn-tab ${view === 'new-users' ? 'ui-btn-tab-active' : ''}`} onClick={() => setView('new-users')}>
+            NewUsers
+          </button>
         </div>
 
         {view === 'buscar' && (
@@ -1134,6 +1161,10 @@ function App() {
             />
 
           </>
+        )}
+
+        {view === 'new-users' && (
+          <NewUsersList usuarios={newUsers} onRefresh={refreshNewUsers} />
         )}
 
         <footer className="border-t border-[#cfe1d7] bg-white/95 px-3 py-3 text-center text-xs text-[#5b7a6c] shadow-sm backdrop-blur md:fixed md:bottom-0 md:left-0 md:right-0 md:pb-[max(0.75rem,var(--safe-bottom))]">
