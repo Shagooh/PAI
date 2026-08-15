@@ -9,6 +9,24 @@ export const EMPTY_USER_FORM = {
   programa: ''
 }
 
+export const EMPTY_NEW_USER_FORM = {
+  rut: '',
+  nombre_apellidos: '',
+  situacion: '',
+  fecha_ingreso: '',
+  convenio_senda: '',
+  fecha_tentativa_ev_in: '',
+  gestor: '',
+  fecha_ev_integral: '',
+  fecha_ultimo_pci: '',
+  tiempo_pci: '',
+  fecha_proximo_pci: '',
+  tiempo_pci_1: '',
+  fecha_proximo_pci_1: '',
+  tiempo_pci_2: '',
+  fecha_proximo_pci_2: ''
+}
+
 export const RUT_REGEX = /^\d{1,2}\.\d{3}\.\d{3}-[\dKk]$/
 
 export const formatDateForDisplay = (value, { shortYear = false } = {}) => {
@@ -69,6 +87,20 @@ export const formatRut = (value) => {
   }
 
   return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+export const addMonthsToDate = (value, months) => {
+  const match = `${value ?? ''}`.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  const n = Number(months)
+  if (!match || !Number.isInteger(n) || n < 1) return ''
+
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const date = new Date(year, month - 1 + n, 1)
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  date.setDate(Math.min(day, lastDay))
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
 }
 
 export const sanitizePersonName = (value) => value.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]/g, '')

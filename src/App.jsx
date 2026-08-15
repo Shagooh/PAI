@@ -6,15 +6,14 @@ import EditarUsuarioCard from './components/EditarUsuarioCard'
 import NewUsersList from './components/NewUsersList'
 import dimensionesObjetivosData from './assets/lista-dimensiones-objetivos.json'
 import decisionesDimensionData from './assets/decisiones-dimension.json'
-import { EMPTY_USER_FORM, formatDateForDisplay, formatDateForInput } from './utils/userUtils'
+import { EMPTY_NEW_USER_FORM, formatDateForDisplay, formatDateForInput, formatRut, addMonthsToDate } from './utils/userUtils'
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
-const API_USUARIOS = buildApiUrl('/api/usuarios')
 const API_NEW_USERS = buildApiUrl('/api/new-users')
 const WORD_EXPORT_PATH = import.meta.env.VITE_WORD_EXPORT_PATH || '/api/usuarios/word'
 const API_WORD_EXPORT = buildApiUrl(WORD_EXPORT_PATH)
-const CACHE_KEY = 'crud-app-cache-v1'
+const CACHE_KEY = 'crud-app-cache-v2'
 const CACHE_TTL_MS = 5 * 60 * 1000
 const dimensionGroups = dimensionesObjetivosData?.Grupos || []
 const dimensionOptions = dimensionGroups.map((group) => group.Dimension)
@@ -265,7 +264,6 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
 
 function App() {
   const [usuarios, setUsuarios] = useState(() => readCache('usuarios', []))
-  const [newUsers, setNewUsers] = useState(() => readCache('new-users', []))
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
@@ -281,7 +279,7 @@ function App() {
   const [showWordModal, setShowWordModal] = useState(false)
   const [wordDownloadError, setWordDownloadError] = useState('')
   const [editingUser, setEditingUser] = useState(null)
-  const [editForm, setEditForm] = useState(EMPTY_USER_FORM)
+  const [editForm, setEditForm] = useState(EMPTY_NEW_USER_FORM)
   const [view, setView] = useState('buscar')
   const [showBackToTop, setShowBackToTop] = useState(false)
   const [activeUserRut, setActiveUserRut] = useState(null)
@@ -367,7 +365,7 @@ function App() {
     }
 
     try {
-      const res = await fetch(API_USUARIOS)
+      const res = await fetch(API_NEW_USERS)
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
       setUsuarios(data)
@@ -380,36 +378,15 @@ function App() {
 
   const refreshUsuarios = () => fetchUsuarios(true)
 
-  const fetchNewUsers = async (forceRefresh = false) => {
-    const cachedNewUsers = readCache('new-users', [])
-    if (!forceRefresh && hasValidCache('new-users')) {
-      setNewUsers(cachedNewUsers)
-      return
-    }
-
-    try {
-      const res = await fetch(API_NEW_USERS)
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-      const data = await res.json()
-      setNewUsers(data)
-      writeCache('new-users', data)
-    } catch (error) {
-      console.error('No se pudieron cargar los NewUsers:', error)
-      setNewUsers(cachedNewUsers)
-    }
-  }
-
-  const refreshNewUsers = () => fetchNewUsers(true)
-
   useEffect(() => {
-    const cachedNewUsers = readCache('new-users', [])
+    const cachedUsuarios = readCache('usuarios', [])
 
-    if (cachedNewUsers.length > 0) {
-      setNewUsers(cachedNewUsers)
+    if (cachedUsuarios.length > 0) {
+      setUsuarios(cachedUsuarios)
     }
 
-    if (!hasValidCache('new-users')) {
-      fetchNewUsers()
+    if (!hasValidCache('usuarios')) {
+      fetchUsuarios()
     }
   }, [])
 
@@ -419,7 +396,7 @@ function App() {
     lastAppliedQueryRef.current = normalizedQuery
 
     if (!normalizedQuery) {
-      setSearchResults(usuarios)
+      setSearchResults([])
       if (queryChanged) {
         setSelectedSearchIds([])
         setActiveUserRut(null)
@@ -432,7 +409,7 @@ function App() {
 
     const filtered = usuarios.filter((user) => {
       const rut = `${user.rut || ''}`.toLowerCase().replace(/[.-]/g, '')
-      const haystack = `${rut} ${user.nombre || ''} ${user.apellido || ''} ${user.equipo_tratante || ''} ${user.estado_motivacional || ''} ${user.programa || ''}`.toLowerCase()
+      const haystack = `${rut} ${user.nombre_apellidos || ''} ${user.situacion || ''} ${user.gestor || ''} ${user.convenio_senda || ''}`.toLowerCase()
       return haystack.includes(normalizedRut)
     })
 
@@ -475,14 +452,21 @@ function App() {
   const handleEditUser = (user) => {
     setEditingUser(user)
     setEditForm({
-      rut: user.rut || '',
-      nombre: user.nombre || '',
-      apellido: user.apellido || '',
-      edad: user.edad?.toString() || '',
-      fecha_nacimiento: formatDateForDisplay(user.fecha_nacimiento || ''),
-      equipo_tratante: user.equipo_tratante || '',
-      estado_motivacional: user.estado_motivacional || '',
-      programa: user.programa || ''
+      rut: formatRut(user.rut || ''),
+      nombre_apellidos: user.nombre_apellidos || '',
+      situacion: user.situacion || '',
+      fecha_ingreso: formatDateForDisplay(user.fecha_ingreso || ''),
+      convenio_senda: user.convenio_senda || '',
+      fecha_tentativa_ev_in: formatDateForDisplay(user.fecha_tentativa_ev_in || ''),
+      gestor: user.gestor || '',
+      fecha_ev_integral: formatDateForDisplay(user.fecha_ev_integral || ''),
+      fecha_ultimo_pci: formatDateForDisplay(user.fecha_ultimo_pci || ''),
+      tiempo_pci: user.tiempo_pci || '',
+      fecha_proximo_pci: formatDateForDisplay(user.fecha_proximo_pci || ''),
+      tiempo_pci_1: user.tiempo_pci_1 || '',
+      fecha_proximo_pci_1: formatDateForDisplay(user.fecha_proximo_pci_1 || ''),
+      tiempo_pci_2: user.tiempo_pci_2 || '',
+      fecha_proximo_pci_2: formatDateForDisplay(user.fecha_proximo_pci_2 || '')
     })
     setSelectedSearchIds([user.rut])
     setActiveUserRut(user.rut)
@@ -491,13 +475,22 @@ function App() {
 
   const handleEditFormChange = (e) => {
     const { name, value } = e.target
-    const nextValue = name === 'fecha_nacimiento' ? formatDateForInput(value) : value
+    if (name === 'rut') return setEditForm((prev) => ({ ...prev, rut: formatRut(value) }))
+    if (name === 'fecha_ultimo_pci' || name === 'tiempo_pci') {
+      const nextValue = name === 'fecha_ultimo_pci' ? formatDateForInput(value) : value
+      return setEditForm((prev) => {
+        const base = name === 'fecha_ultimo_pci' ? nextValue : prev.fecha_ultimo_pci
+        const months = name === 'tiempo_pci' ? nextValue : prev.tiempo_pci
+        return { ...prev, [name]: nextValue, fecha_proximo_pci: addMonthsToDate(base, months) }
+      })
+    }
+    const nextValue = name.startsWith('fecha_') ? formatDateForInput(value) : value
     setEditForm((prev) => ({ ...prev, [name]: nextValue }))
   }
 
   const cancelEditUser = () => {
     setEditingUser(null)
-    setEditForm(EMPTY_USER_FORM)
+    setEditForm(EMPTY_NEW_USER_FORM)
     setSelectedSearchIds([])
     setActiveUserRut(null)
     clearFichaFields()
@@ -673,13 +666,9 @@ function App() {
         const isActive = usuario.rut === activeUserRut
         return {
           rut: usuario.rut,
-          nombre: usuario.nombre,
-          apellido: usuario.apellido,
-          edad: usuario.edad,
-          fecha_nacimiento: usuario.fecha_nacimiento || '',
-          equipo_tratante: usuario.equipo_tratante || '',
-          estado_motivacional: usuario.estado_motivacional || '',
-          programa: usuario.programa || '',
+          nombre: usuario.nombre_apellidos || '',
+          apellido: '',
+          edad: '',
           meta: isActive ? activeMeta : (usuario.meta || ''),
           decisiones: isActive
             ? activeDecisiones
@@ -746,7 +735,7 @@ function App() {
 
   const createUsuario = async (usuario) => {
     try {
-      const res = await fetch(API_USUARIOS, {
+      const res = await fetch(API_NEW_USERS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(usuario),
@@ -758,18 +747,32 @@ function App() {
     fetchUsuarios()
   }
 
+  const deleteUsuario = async (user) => {
+    const nombre = user.nombre_apellidos || user.rut || 'este usuario'
+    if (!window.confirm(`¿Eliminar a ${nombre}? Esta acción no se puede deshacer.`)) return
+
+    try {
+      const res = await fetch(`${API_NEW_USERS}/${encodeURIComponent(user.rut)}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+    } catch (error) {
+      console.error('No se pudo eliminar el usuario:', error)
+    }
+    fetchUsuarios(true)
+  }
+
   const updateUsuario = async (e) => {
     e.preventDefault()
     if (!editingUser) return
 
     const payload = {
       ...editForm,
-      edad: Number(editForm.edad),
       meta: searchMetaText,
     }
 
     try {
-      const res = await fetch(`${API_USUARIOS}/${editingUser.rut}`, {
+      const res = await fetch(`${API_NEW_USERS}/${editingUser.rut}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -781,20 +784,27 @@ function App() {
         ...editingUser,
         ...updatedUser,
         rut: updatedUser.rut || editForm.rut,
-        nombre: updatedUser.nombre || editForm.nombre,
-        apellido: updatedUser.apellido || editForm.apellido,
-        edad: Number(updatedUser.edad ?? editForm.edad),
-        fecha_nacimiento: updatedUser.fecha_nacimiento ?? editForm.fecha_nacimiento,
-        equipo_tratante: updatedUser.equipo_tratante ?? editForm.equipo_tratante,
-        estado_motivacional: updatedUser.estado_motivacional ?? editForm.estado_motivacional,
-        programa: updatedUser.programa ?? editForm.programa,
+        nombre_apellidos: updatedUser.nombre_apellidos ?? editForm.nombre_apellidos,
+        situacion: updatedUser.situacion ?? editForm.situacion,
+        fecha_ingreso: updatedUser.fecha_ingreso ?? editForm.fecha_ingreso,
+        convenio_senda: updatedUser.convenio_senda ?? editForm.convenio_senda,
+        fecha_tentativa_ev_in: updatedUser.fecha_tentativa_ev_in ?? editForm.fecha_tentativa_ev_in,
+        gestor: updatedUser.gestor ?? editForm.gestor,
+        fecha_ev_integral: updatedUser.fecha_ev_integral ?? editForm.fecha_ev_integral,
+        fecha_ultimo_pci: updatedUser.fecha_ultimo_pci ?? editForm.fecha_ultimo_pci,
+        tiempo_pci: updatedUser.tiempo_pci ?? editForm.tiempo_pci,
+        fecha_proximo_pci: updatedUser.fecha_proximo_pci ?? editForm.fecha_proximo_pci,
+        tiempo_pci_1: updatedUser.tiempo_pci_1 ?? editForm.tiempo_pci_1,
+        fecha_proximo_pci_1: updatedUser.fecha_proximo_pci_1 ?? editForm.fecha_proximo_pci_1,
+        tiempo_pci_2: updatedUser.tiempo_pci_2 ?? editForm.tiempo_pci_2,
+        fecha_proximo_pci_2: updatedUser.fecha_proximo_pci_2 ?? editForm.fecha_proximo_pci_2,
         meta: searchMetaText,
       }
 
       setUsuarios((prev) => prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)))
       setSearchResults((prev) => prev ? prev.map((u) => (u.rut === normalizedUser.rut ? normalizedUser : u)) : prev)
       setEditingUser(null)
-      setEditForm(EMPTY_USER_FORM)
+      setEditForm(EMPTY_NEW_USER_FORM)
       setSelectedSearchIds([normalizedUser.rut])
       setSearchMetaText(normalizedUser.meta || '')
     } catch (error) {
@@ -846,7 +856,13 @@ function App() {
                 {(
                   <>
                     {searchResults.length === 0 ? (
-                      <p className="text-sm text-[#617f71]">{usuarios.length === 0 ? 'No hay usuarios registrados.' : 'No se encontraron usuarios.'}</p>
+                      <p className="text-sm text-[#617f71]">
+                        {usuarios.length === 0
+                          ? 'No hay usuarios registrados.'
+                          : searchQuery.trim()
+                            ? 'No se encontraron usuarios.'
+                            : 'Escribe un RUT, nombre o apellido para buscar.'}
+                      </p>
                     ) : (
                       <>
                         <div className="hidden md:block">
@@ -855,14 +871,12 @@ function App() {
                               <thead>
                                 <tr>
                                   <th style={{ width: '40px' }}></th>
-                                  <th style={{ width: '160px' }}>RUT</th>
-                                  <th style={{ width: '200px' }}>Nombre</th>
-                                  <th style={{ width: '200px' }}>Apellido</th>
-                                  <th style={{ width: '80px' }}>Edad</th>
-                                  <th style={{ width: '170px' }}>Fecha nacimiento</th>
-                                  <th style={{ width: '180px' }}>Equipo tratante</th>
-                                  <th style={{ width: '180px' }}>Estado motivacional</th>
-                                  <th style={{ width: '160px' }}>Programa</th>
+                                  <th style={{ width: '150px' }}>RUT</th>
+                                  <th style={{ width: '220px' }}>Nombre y Apellidos</th>
+                                  <th style={{ width: '130px' }}>Situación</th>
+                                  <th style={{ width: '140px' }}>Fecha de ingreso</th>
+                                  <th style={{ width: '140px' }}>Convenio Senda</th>
+                                  <th style={{ width: '150px' }}>Gestor</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -884,13 +898,11 @@ function App() {
                                         )}
                                       </span>
                                     </td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{u.nombre}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{u.apellido}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{u.edad}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{formatDateForDisplay(u.fecha_nacimiento) || '-'}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{u.equipo_tratante || '-'}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{u.estado_motivacional || '-'}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{u.programa || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.nombre_apellidos || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.situacion || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{formatDateForDisplay(u.fecha_ingreso) || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.convenio_senda || '-'}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{u.gestor || '-'}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -931,28 +943,20 @@ function App() {
                               </span>
                               <span className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                                 <span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Nombre</span>
-                                  <span className="block break-words text-[#1d4436]">{`${u.nombre} ${u.apellido}`.trim() || '-'}</span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Situación</span>
+                                  <span className="block break-words text-[#1d4436]">{u.situacion || '-'}</span>
                                 </span>
                                 <span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Edad</span>
-                                  <span className="block break-words text-[#1d4436]">{u.edad || '-'}</span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Fecha de ingreso</span>
+                                  <span className="block break-words text-[#1d4436]">{formatDateForDisplay(u.fecha_ingreso) || '-'}</span>
                                 </span>
                                 <span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Fecha nacimiento</span>
-                                  <span className="block break-words text-[#1d4436]">{formatDateForDisplay(u.fecha_nacimiento) || '-'}</span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Convenio Senda</span>
+                                  <span className="block break-words text-[#1d4436]">{u.convenio_senda || '-'}</span>
                                 </span>
                                 <span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Equipo tratante</span>
-                                  <span className="block break-words text-[#1d4436]">{u.equipo_tratante || '-'}</span>
-                                </span>
-                                <span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Estado motivacional</span>
-                                  <span className="block break-words text-[#1d4436]">{u.estado_motivacional || '-'}</span>
-                                </span>
-                                <span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Programa</span>
-                                  <span className="block break-words text-[#1d4436]">{u.programa || '-'}</span>
+                                  <span className="block text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Gestor</span>
+                                  <span className="block break-words text-[#1d4436]">{u.gestor || '-'}</span>
                                 </span>
                               </span>
                             </button>
@@ -963,7 +967,7 @@ function App() {
                             {activeUser && (
                               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#d6e7de] bg-white px-3 py-2">
                                 <div className="text-sm font-bold text-[#2f5d4b]">
-                                  Ficha de: {`${activeUser.nombre} ${activeUser.apellido}`.trim()} ({activeUser.rut})
+                                  Ficha de: {activeUser.nombre_apellidos || activeUser.rut} ({activeUser.rut})
                                 </div>
                               </div>
                             )}
@@ -1150,7 +1154,7 @@ function App() {
           <>
             <UsuarioForm onSubmit={createUsuario} />
 
-            <UsuariosList usuarios={usuarios} onEdit={handleEditUser} onRefresh={refreshUsuarios} />
+            <UsuariosList usuarios={usuarios} onEdit={handleEditUser} onDelete={deleteUsuario} onRefresh={refreshUsuarios} />
 
             <EditarUsuarioCard
               editingUser={editingUser}
@@ -1164,7 +1168,7 @@ function App() {
         )}
 
         {view === 'new-users' && (
-          <NewUsersList usuarios={newUsers} onRefresh={refreshNewUsers} />
+          <NewUsersList usuarios={usuarios} onRefresh={refreshUsuarios} />
         )}
 
         <footer className="border-t border-[#cfe1d7] bg-white/95 px-3 py-3 text-center text-xs text-[#5b7a6c] shadow-sm backdrop-blur md:fixed md:bottom-0 md:left-0 md:right-0 md:pb-[max(0.75rem,var(--safe-bottom))]">

@@ -1,6 +1,30 @@
 import { formatDateForDisplay } from '../utils/userUtils'
 
-function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
+const NEW_USER_FIELDS = [
+  { key: 'nombre_apellidos', label: 'Nombre y Apellidos' },
+  { key: 'situacion', label: 'Situación' },
+  { key: 'fecha_ingreso', label: 'Fecha de ingreso' },
+  { key: 'convenio_senda', label: 'Convenio Senda' },
+  { key: 'fecha_tentativa_ev_in', label: 'Fecha tentativa EV IN' },
+  { key: 'gestor', label: 'Gestor' },
+  { key: 'fecha_ev_integral', label: 'Fecha EV integral' },
+  { key: 'fecha_ultimo_pci', label: 'Fecha último PCI' },
+  { key: 'tiempo_pci', label: 'Tiempo PCI' },
+  { key: 'fecha_proximo_pci', label: 'Fecha próximo PCI' },
+  { key: 'tiempo_pci_1', label: 'Tiempo PCI_1' },
+  { key: 'fecha_proximo_pci_1', label: 'Fecha próximo PCI_1' },
+  { key: 'tiempo_pci_2', label: 'Tiempo PCI_2' },
+  { key: 'fecha_proximo_pci_2', label: 'Fecha próximo PCI_2' },
+]
+
+const renderCell = (u, field) => {
+  const value = u[field.key]
+  if (value === null || value === undefined || value === '') return '-'
+  if (field.key.startsWith('fecha_')) return formatDateForDisplay(value) || value
+  return value
+}
+
+function UsuariosList({ usuarios, onEdit, onDelete, onRefresh = () => { } }) {
   return (
     <div className="panel mt-6">
       <div className="panel-head">
@@ -15,33 +39,28 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
         ) : (
           <>
             <div className="ui-table-wrap hidden rounded-none border-x-0 border-b-0 md:block">
-              <table className="ui-table min-w-[1120px]">
+              <table className="ui-table min-w-[2000px]">
                 <thead>
                   <tr>
                     <th>RUT</th>
-                    <th>Nombre</th>
-                    <th>Apellido</th>
-                    <th>Edad</th>
-                    <th>Fecha nacimiento</th>
-                    <th>Equipo tratante</th>
-                    <th>Estado motivacional</th>
-                    <th>Programa</th>
+                    {NEW_USER_FIELDS.map((field) => (
+                      <th key={field.key}>{field.label}</th>
+                    ))}
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usuarios.map((u) => (
                     <tr key={u.rut}>
-                      <td>{u.rut}</td>
-                      <td>{u.nombre}</td>
-                      <td>{u.apellido}</td>
-                      <td>{u.edad}</td>
-                      <td>{formatDateForDisplay(u.fecha_nacimiento, { shortYear: true }) || '-'}</td>
-                      <td>{u.equipo_tratante || '-'}</td>
-                      <td>{u.estado_motivacional || '-'}</td>
-                      <td>{u.programa || '-'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{u.rut || '-'}</td>
+                      {NEW_USER_FIELDS.map((field) => (
+                        <td key={field.key} style={{ whiteSpace: 'nowrap' }}>{renderCell(u, field)}</td>
+                      ))}
                       <td>
-                        <button className="ui-btn-warning px-3 py-2 text-xs" onClick={() => onEdit(u)}>Editar</button>
+                        <div className="flex gap-2">
+                          <button className="ui-btn-warning px-3 py-2 text-xs" onClick={() => onEdit(u)}>Editar</button>
+                          <button className="ui-btn-danger px-3 py-2 text-xs" onClick={() => onDelete?.(u)}>Eliminar</button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -54,34 +73,25 @@ function UsuariosList({ usuarios, onEdit, onRefresh = () => { } }) {
                 <div key={u.rut} className="rounded-xl border border-[#d0e1d7] bg-white p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-bold text-[#1d4436]">{`${u.nombre} ${u.apellido}`.trim() || '-'}</div>
-                      <div className="text-xs text-[#6d8a7c]">{u.rut}</div>
+                      <div className="break-words text-sm font-bold text-[#1d4436]">{u.nombre_apellidos || '-'}</div>
+                      <div className="text-xs text-[#6d8a7c]">{u.rut || '-'}</div>
                     </div>
-                    <button type="button" className="ui-btn-warning shrink-0 px-3 py-2 text-xs" onClick={() => onEdit(u)}>
-                      Editar
-                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <button type="button" className="ui-btn-warning px-3 py-2 text-xs" onClick={() => onEdit(u)}>
+                        Editar
+                      </button>
+                      <button type="button" className="ui-btn-danger px-3 py-2 text-xs" onClick={() => onDelete?.(u)}>
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Edad</div>
-                      <div className="break-words text-[#1d4436]">{u.edad || '-'}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Fecha nacimiento</div>
-                      <div className="break-words text-[#1d4436]">{formatDateForDisplay(u.fecha_nacimiento, { shortYear: true }) || '-'}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Equipo tratante</div>
-                      <div className="break-words text-[#1d4436]">{u.equipo_tratante || '-'}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Estado motivacional</div>
-                      <div className="break-words text-[#1d4436]">{u.estado_motivacional || '-'}</div>
-                    </div>
-                    <div className="col-span-2">
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">Programa</div>
-                      <div className="break-words text-[#1d4436]">{u.programa || '-'}</div>
-                    </div>
+                    {NEW_USER_FIELDS.filter((field) => field.key !== 'nombre_apellidos').map((field) => (
+                      <div key={field.key}>
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-[#6d8a7c]">{field.label}</div>
+                        <div className="break-words text-[#1d4436]">{renderCell(u, field)}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
