@@ -4,24 +4,17 @@ import UsuarioForm from './components/UsuarioForm'
 import UsuariosList from './components/UsuariosList'
 import EditarUsuarioCard from './components/EditarUsuarioCard'
 import NewUsersList from './components/NewUsersList'
-import dimensionesObjetivosData from './assets/lista-dimensiones-objetivos.json'
-import decisionesDimensionData from './assets/decisiones-dimension.json'
+import DimensionesAdmin from './components/DimensionesAdmin'
 import { EMPTY_NEW_USER_FORM, formatDateForDisplay, formatDateForInput, formatRut, addMonthsToDate } from './utils/userUtils'
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://pai-be.vercel.app').replace(/\/$/, '')
 const buildApiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 const API_NEW_USERS = buildApiUrl('/api/new-users')
+const API_DIMENSIONES = buildApiUrl('/api/dimensiones')
 const WORD_EXPORT_PATH = import.meta.env.VITE_WORD_EXPORT_PATH || '/api/usuarios/word'
 const API_WORD_EXPORT = buildApiUrl(WORD_EXPORT_PATH)
-const CACHE_KEY = 'crud-app-cache-v2'
+const CACHE_KEY = 'crud-app-cache-v3'
 const CACHE_TTL_MS = 5 * 60 * 1000
-const dimensionGroups = dimensionesObjetivosData?.Grupos || []
-const dimensionOptions = dimensionGroups.map((group) => group.Dimension)
-const objectivesByDimension = dimensionGroups.reduce((acc, group) => {
-  acc[group.Dimension] = group.Objetivos || []
-  return acc
-}, {})
-const decisionRules = decisionesDimensionData?.reglas || []
 
 const normalizeText = (value = '') =>
   value
@@ -32,24 +25,31 @@ const normalizeText = (value = '') =>
     .trim()
     .toLowerCase()
 
-const decisionsByDimensionAndObjective = decisionRules.reduce((acc, rule) => {
-  const dimension = rule?.Dimension
-  if (!dimension) return acc
+const buildDimensionDerived = (dimensionData = []) => {
+  const dimensionOptions = dimensionData.map((group) => group.nombre)
+  const objectivesByDimension = dimensionData.reduce((acc, group) => {
+    acc[group.nombre] = (group.objetivos || []).map((objetivo) => objetivo.texto)
+    return acc
+  }, {})
 
-  const objectiveMap = acc[dimension] || {}
-  const options = rule?.ObjetivosDisponibles || []
+  const decisionsByDimensionAndObjective = dimensionData.reduce((acc, group) => {
+    const objectiveMap = {}
+    for (const objetivo of group.objetivos || []) {
+      const key = normalizeText(objetivo.texto)
+      if (!objectiveMap[key]) objectiveMap[key] = []
+      for (const opcion of objetivo.opciones || []) {
+        objectiveMap[key].push({
+          Estrategia: opcion.estrategias || [],
+          Indicador: opcion.indicadores || [],
+        })
+      }
+    }
+    acc[group.nombre] = objectiveMap
+    return acc
+  }, {})
 
-  options.forEach((option) => {
-    const objective = option?.Objetivo
-    if (!objective) return
-    const key = normalizeText(objective)
-    if (!objectiveMap[key]) objectiveMap[key] = []
-    objectiveMap[key].push(option)
-  })
-
-  acc[dimension] = objectiveMap
-  return acc
-}, {})
+  return { dimensionOptions, objectivesByDimension, decisionsByDimensionAndObjective }
+}
 
 const buildListText = (items = []) => items.map((item) => `- ${item}`).join('\n')
 const buildEditableText = (value) => {
@@ -264,6 +264,7 @@ function Dropdown({ label, value, options, onChange, placeholder, disabled }) {
 
 function App() {
   const [usuarios, setUsuarios] = useState(() => readCache('usuarios', []))
+  const [dimensionData, setDimensionData] = useState(() => readCache('dimensiones', []))
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [selectedSearchIds, setSelectedSearchIds] = useState([])
@@ -378,6 +379,52 @@ function App() {
 
   const refreshUsuarios = () => fetchUsuarios(true)
 
+  const fetchDimensiones = async (forceRefresh = false) => {
+    const cachedDimensiones = readCache('dimensiones', [])
+    if (!forceRefresh && hasValidCache('dimensiones')) {
+      setDimensionData(cachedDimensiones)
+      return
+    }
+
+    try {
+      const res = await fetch(API_DIMENSIONES)
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      setDimensionData(data)
+      writeCache('dimensiones', data)
+    } catch (error) {
+      console.error('No se pudieron cargar las dimensiones:', error)
+      setDimensionData(cachedDimensiones)
+    }
+  }
+
+  const apiDimensiones = async (method, path = '', body) => {
+    const res = await fetch(`${API_DIMENSIONES}${path}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    if (!res.ok) {
+      let message = `Error ${res.status}`
+      try {
+        const data = await res.json()
+        if (data?.error) message = data.error
+      } catch { /* ignore */ }
+      throw new Error(message)
+    }
+    return res.status === 204 ? null : res.json()
+  }
+
+  const createDimension = async (nombre) => { await apiDimensiones('POST', '', { nombre }); fetchDimensiones(true) }
+  const updateDimension = async (id, nombre) => { await apiDimensiones('PUT', `/${id}`, { nombre }); fetchDimensiones(true) }
+  const deleteDimension = async (id) => { await apiDimensiones('DELETE', `/${id}`); fetchDimensiones(true) }
+  const createObjetivo = async (dimensionId, texto) => { await apiDimensiones('POST', `/${dimensionId}/objetivos`, { texto }); fetchDimensiones(true) }
+  const updateObjetivo = async (id, texto) => { await apiDimensiones('PUT', `/objetivos/${id}`, { texto }); fetchDimensiones(true) }
+  const deleteObjetivo = async (id) => { await apiDimensiones('DELETE', `/objetivos/${id}`); fetchDimensiones(true) }
+  const createOpcion = async (objetivoId, estrategias, indicadores) => { await apiDimensiones('POST', `/objetivos/${objetivoId}/opciones`, { estrategias, indicadores }); fetchDimensiones(true) }
+  const updateOpcion = async (id, estrategias, indicadores) => { await apiDimensiones('PUT', `/opciones/${id}`, { estrategias, indicadores }); fetchDimensiones(true) }
+  const deleteOpcion = async (id) => { await apiDimensiones('DELETE', `/opciones/${id}`); fetchDimensiones(true) }
+
   useEffect(() => {
     const cachedUsuarios = readCache('usuarios', [])
 
@@ -388,6 +435,8 @@ function App() {
     if (!hasValidCache('usuarios')) {
       fetchUsuarios()
     }
+
+    fetchDimensiones()
   }, [])
 
   const applySearchFilter = (query) => {
@@ -496,6 +545,7 @@ function App() {
     clearFichaFields()
   }
 
+  const { dimensionOptions, objectivesByDimension, decisionsByDimensionAndObjective } = buildDimensionDerived(dimensionData)
   const dimensiones = dimensionOptions
   const objetivosPorDimension = objectivesByDimension
 
@@ -840,7 +890,26 @@ function App() {
           <button className={`ui-btn-tab ${view === 'new-users' ? 'ui-btn-tab-active' : ''}`} onClick={() => setView('new-users')}>
             NewUsers
           </button>
+          <button className={`ui-btn-tab ${view === 'dimensiones' ? 'ui-btn-tab-active' : ''}`} onClick={() => setView('dimensiones')}>
+            Dimensiones y Objetivos
+          </button>
         </div>
+
+        {view === 'dimensiones' && (
+          <DimensionesAdmin
+            dimensiones={dimensionData}
+            onRefresh={fetchDimensiones}
+            onCreateDimension={createDimension}
+            onUpdateDimension={updateDimension}
+            onDeleteDimension={deleteDimension}
+            onCreateObjetivo={createObjetivo}
+            onUpdateObjetivo={updateObjetivo}
+            onDeleteObjetivo={deleteObjetivo}
+            onCreateOpcion={createOpcion}
+            onUpdateOpcion={updateOpcion}
+            onDeleteOpcion={deleteOpcion}
+          />
+        )}
 
         {view === 'buscar' && (
           <>
